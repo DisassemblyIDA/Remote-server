@@ -20,7 +20,8 @@ real_nicknames = {
     "185.153.47.45": ["Spid4", True],
     "178.126.31.239": ["Terakomari", True],
     "90.151.151.119": ["Magnus2", True],
-    "37.195.181.198": ["Demfy", True]
+    "37.195.181.198": ["Demfy", True],
+    "122.166.86.148": ["Redflame Irido", True]
 }
 
 DATA_FILE = 'user_data.json'
