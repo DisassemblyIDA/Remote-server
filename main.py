@@ -14,6 +14,7 @@ active_duration = timedelta(seconds=30)
 real_nicknames = {
     "109.72.249.137": ["Mr.Butovsky", True],
     "176.15.170.199": ["Noysi", True],
+    "176.15.170.1": ["Noysi_2", True],
     "85.140.18.73": ["Magnus", True],
     "176.192.161.123": ["Praice", True],
     "193.0.155.136": ["Kointo", True],
