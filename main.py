@@ -10,7 +10,7 @@ user_data = {}
 # Длительность активности в секундах
 active_duration = timedelta(seconds=30)
 
-# Словарь для настоящих никнеймов по IP и их статусам
+# Словарь настоящих никнеймов по IP и их статусам
 real_nicknames = {
     "109.72.249.137": ["Mr.Butovsky", True],
     "94.25.173.251": ["Mr.Butovsky2", True],
@@ -26,36 +26,29 @@ real_nicknames = {
     "122.166.86.148": ["Redflame Irido", True],
     "176.59.215.218": ["Titl", True]
 }
-
 DATA_FILE = 'user_data.json'
 
 
-# Функция для сохранения данных в файл
 def save_data_to_file():
+    """Сохранение данных в файл (чистая функция)."""
     with open(DATA_FILE, 'w') as file:
-        # Преобразуем объект datetime в строку для сохранения
         json.dump(
-            {
-                ip: [server, nickname, activated,
-                     last_active.isoformat()]
-                for ip, (server, nickname, activated,
-                         last_active) in user_data.items()
-            }, file)
+            {ip: [server, nickname, activated, last_active.isoformat()]
+             for ip, (server, nickname, activated, last_active) in user_data.items()},
+            file
+        )
 
 
-# Функция для загрузки данных из файла
 def load_data_from_file():
+    """Загрузка данных из файла (чистая функция)."""
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r') as file:
             saved_data = json.load(file)
-            for ip, (server, nickname, activated,
-                     last_active) in saved_data.items():
-                # Преобразуем строку в объект datetime при восстановлении данных
-                user_data[ip] = (server, nickname, activated,
-                                 datetime.fromisoformat(last_active))
+            for ip, (server, nickname, activated, last_active) in saved_data.items():
+                user_data[ip] = (server, nickname, activated, datetime.fromisoformat(last_active))
 
 
-# HTML-шаблон для отображения данных
+# HTML-шаблон с темной темой и кнопками копирования
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ru">
@@ -66,10 +59,9 @@ HTML_TEMPLATE = """
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
+            background-color: #121212;
+            color: #f4f4f4;
             padding: 20px;
-            color: #333;
         }
         h1 {
             color: #007BFF;
@@ -77,9 +69,10 @@ HTML_TEMPLATE = """
         table {
             width: 100%;
             border-collapse: collapse;
+            margin-bottom: 20px;
         }
         th, td {
-            border: 1px solid #ddd;
+            border: 1px solid #333;
             padding: 8px;
             text-align: left;
         }
@@ -88,10 +81,21 @@ HTML_TEMPLATE = """
             color: white;
         }
         .active {
-            color: green;
+            color: #4CAF50;
         }
         .inactive {
             color: gray;
+        }
+        .copy-button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .copy-button:hover {
+            background-color: #0056b3;
         }
     </style>
     <script>
@@ -103,7 +107,7 @@ HTML_TEMPLATE = """
                     const tableBody = document.getElementById('data-table-body');
                     tableBody.innerHTML = ''; // Очищаем текущие данные
                     if (data.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="6">Нет данных.</td></tr>'; // Сообщение, если данных нет
+                        tableBody.innerHTML = '<tr><td colspan="6">Нет данных.</td></tr>'; 
                     } else {
                         data.forEach(item => {
                             const row = document.createElement('tr');
@@ -115,6 +119,7 @@ HTML_TEMPLATE = """
                                 <td>${item[3]}</td>
                                 <td class="${statusClass}">&#11044;</td>
                                 <td>${item[5]}</td>
+                                <td><button class="copy-button" onclick="copyToClipboard('${item[0]}')">Копировать IP</button></td>
                             `;
                             tableBody.appendChild(row);
                         });
@@ -123,9 +128,14 @@ HTML_TEMPLATE = """
                 .catch(error => console.error('Ошибка при получении данных:', error));
         }
 
-        // Запускаем обновление каждые 2 секунды
+        // Копирование в буфер обмена
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Скопировано в буфер обмена: ' + text);
+            });
+        }
+
         setInterval(fetchData, 2000);
-        // Первоначальный вызов функции для загрузки данных при открытии страницы
         window.onload = fetchData;
     </script>
 </head>
@@ -140,6 +150,7 @@ HTML_TEMPLATE = """
                 <th>Настоящий никнейм</th>
                 <th>Статус</th>
                 <th>Лицензия</th>
+                <th>Действия</th>
             </tr>
         </thead>
         <tbody id="data-table-body">
@@ -151,60 +162,41 @@ HTML_TEMPLATE = """
 """
 
 
-# Обработка GET-запроса
 @app.route('/', methods=['GET'])
 def home():
-    return HTML_TEMPLATE  # Возвращаем HTML-шаблон
+    return HTML_TEMPLATE
 
 
-# Обработка POST-запроса
 @app.route('/data', methods=['POST'])
 def receive_data():
-    data = request.get_data(as_text=True)  # Получаем данные запроса как текст
-    print(f"Получен POST-запрос (необработанные данные): {data}"
-          )  # Логируем данные
-    if data:  # Проверяем, что данные не пустые
-        # Извлекаем ip, server, nickname и activated
+    data = request.get_data(as_text=True)
+    if data:
         ip, server, nickname, activated = data.split(" ", 3)
-        # Обновляем данные пользователя и текущее время
         user_data[ip] = (server, nickname, activated, datetime.now())
-        save_data_to_file()  # Сохраняем данные в файл
-    return jsonify({
-        "status": "success",
-        "data": data
-    }), 201  # Возвращаем ответ в формате JSON
+        save_data_to_file()
+    return jsonify({"status": "success", "data": data}), 201
 
 
-# Обработка GET-запроса для получения данных
 @app.route('/data', methods=['GET'])
 def get_data():
     current_time = datetime.now()
     response_data = []
     for ip, (server, nickname, activated, last_active) in user_data.items():
-        # Получаем настоящий никнейм по IP
         real_nickname = real_nicknames.get(ip, ["Неизвестно", False])
-        # Проверяем, является ли пользователь активным
         status = (current_time - last_active) < active_duration
-        # Определяем статус лицензии
         license_status = "Активирована" if activated == "True" else "Недействительна"
-        response_data.append(
-            [ip, server, nickname, real_nickname[0], status,
-             license_status])  # Добавляем данные в список
-    return jsonify(response_data)  # Возвращаем данные в формате JSON
+        response_data.append([ip, server, nickname, real_nickname[0], status, license_status])
+    return jsonify(response_data)
 
 
-# Обработка GET-запроса для проверки активности по IP
 @app.route('/check_ip/<ip_address>', methods=['GET'])
 def check_ip(ip_address):
-    print(f"Запрос на проверку IP: {ip_address}")  # Логирование IP-адреса
     if ip_address in real_nicknames:
         user_status = real_nicknames[ip_address][1]
         return str(1 if user_status else 0), 200
-    else:
-        return "0", 200
-
+    return "0", 200
 
 
 if __name__ == '__main__':
-    load_data_from_file()  # Восстанавливаем данные из файла при запуске
-    app.run(host='0.0.0.0', port=8080, debug=True)  # Включаем отладочный режим
+    load_data_from_file()
+    app.run(host='0.0.0.0', port=8080, debug=True)
