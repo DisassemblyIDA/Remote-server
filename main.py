@@ -13,6 +13,7 @@ active_duration = timedelta(seconds=30)
 # Словарь для настоящих никнеймов по IP и их статусам
 real_nicknames = {
     "109.72.249.137": ["Mr.Butovsky", True],
+    "94.25.173.251": ["Mr.Butovsky2", True],
     "176.15.170.199": ["Noysi", True],
     "176.15.170.1": ["Noysi_2", True],
     "85.140.18.73": ["Magnus", True],
