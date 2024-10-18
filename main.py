@@ -113,12 +113,12 @@ HTML_TEMPLATE = """
                     const tableBody = document.getElementById('data-table-body');
                     tableBody.innerHTML = ''; // Очищаем текущие данные
                     if (data.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="6">Нет данных.</td></tr>';
+                        tableBody.innerHTML = '<tr><td colspan="7">Нет данных.</td></tr>';
                     } else {
                         data.forEach(item => {
                             const row = document.createElement('tr');
                             const statusClass = item[4] ? 'active' : 'inactive';
-                            row.innerHTML = 
+                            row.innerHTML = `
                                 <td>${item[0]}</td>
                                 <td>${item[1]}</td>
                                 <td>${item[2]}</td>
@@ -126,7 +126,7 @@ HTML_TEMPLATE = """
                                 <td class="${statusClass}">&#11044;</td>
                                 <td>${item[5]}</td>
                                 <td><button class="copy-button" onclick="copyToClipboard('${item[0]}')">Копировать IP</button></td>
-                            ;
+                            `;
                             tableBody.appendChild(row);
                         });
                     }
@@ -161,7 +161,7 @@ HTML_TEMPLATE = """
                 </tr>
             </thead>
             <tbody id="data-table-body">
-                <tr><td colspan="6">Нет данных.</td></tr>
+                <tr><td colspan="7">Нет данных.</td></tr>
             </tbody>
         </table>
     </div>
@@ -219,6 +219,7 @@ def get_data():
     for ip, server, nickname, activated, last_active in users:
         real_nickname = real_nicknames.get(ip, ["Неизвестно", False])
         
+        # Преобразуем last_active в datetime, если он является строкой или другим типом
         if isinstance(last_active, datetime):
             time_diff = current_time - last_active
             status = time_diff < active_duration  # Проверяем, прошло ли больше 30 секунд
@@ -229,13 +230,6 @@ def get_data():
         response_data.append([ip, server, nickname, real_nickname[0], status, license_status])
     
     return jsonify(response_data)
-
-@app.route('/check_ip/<ip_address>', methods=['GET'])
-def check_ip(ip_address):
-    if ip_address in real_nicknames:
-        user_status = real_nicknames[ip_address][1]
-        return str(1 if user_status else 0), 200
-    return "0", 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=True)
