@@ -220,17 +220,21 @@ def get_data():
     for ip, server, nickname, activated, last_active in users:
         real_nickname = real_nicknames.get(ip, ["Неизвестно", False])
         
-        # Преобразуем last_active в datetime, если он является строкой или другим типом
+        # Проверка, что last_active действительно является datetime
         if isinstance(last_active, datetime):
             time_diff = current_time - last_active
             status = time_diff < active_duration  # Проверяем, прошло ли больше 30 секунд
         else:
             status = False  # Если last_active не определен, пользователь не активен
         
+        # Лицензия
         license_status = "Активирована" if activated else "Недействительна"
+        
+        # Отправка данных для фронтенда
         response_data.append([ip, server, nickname, real_nickname[0], status, license_status])
     
     return jsonify(response_data)
+
 
 
 @app.route('/check_ip/<ip_address>', methods=['GET'])
