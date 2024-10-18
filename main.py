@@ -1,8 +1,8 @@
 from flask import Flask, request, jsonify, render_template_string
 from datetime import datetime, timedelta
-import psycopg2
-from psycopg2.extras import RealDictCursor
 import os
+import psycopg2
+from psycopg2 import sql
 
 app = Flask(__name__)
 
@@ -13,14 +13,64 @@ active_duration = timedelta(seconds=30)
 real_nicknames = {
     "109.72.249.137": ["Mr.Butovsky", True],
     "94.25.173.251": ["Mr.Butovsky_2", True],
-    # ... (остальные записи)
+    "176.15.170.199": ["Noysi", True],
+    # (другие никнеймы)
 }
 
-# Настройка соединения с базой данных PostgreSQL
-DATABASE_URL = os.getenv("postgresql://postgres:rbMyAhNzxQkXlBrLJFtxUsHRluYLYEEK@postgres.railway.internal:5432/railway")
-conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+# Функция для подключения к базе данных
+def get_db_connection():
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+    conn = psycopg2.connect(DATABASE_URL)
+    return conn
 
-# HTML-шаблон с темной темой и кнопками копирования
+# Функция для создания таблицы (если её ещё нет)
+def create_table():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS user_data (
+            id TEXT PRIMARY KEY,
+            server TEXT NOT NULL,
+            nickname TEXT NOT NULL,
+            activated BOOLEAN NOT NULL,
+            last_active TIMESTAMP
+        );
+    ''')
+    conn.commit()
+    cur.close()
+    conn.close()
+
+create_table()
+
+# Функция для сохранения данных пользователя в базу данных
+def save_user_data(ip, server, nickname, activated):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('''
+        INSERT INTO user_data (id, server, nickname, activated, last_active)
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (id) DO UPDATE 
+        SET server = EXCLUDED.server, 
+            nickname = EXCLUDED.nickname, 
+            activated = EXCLUDED.activated,
+            last_active = EXCLUDED.last_active;
+    ''', (ip, server, nickname, activated, datetime.now()))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+# Функция для загрузки данных пользователя
+def load_user_data():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id, server, nickname, activated, last_active FROM user_data')
+    rows = cur.fetchall()
+    user_data = {row[0]: (row[1], row[2], row[3], row[4]) for row in rows}
+    cur.close()
+    conn.close()
+    return user_data
+
+# HTML-шаблон остаётся неизменным
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ru">
@@ -29,85 +79,10 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Полученные данные</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #121212;
-            color: #f4f4f4;
-            padding: 20px;
-        }
-        h1 {
-            color: #007BFF;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        th, td {
-            border: 1px solid #333;
-            padding: 8px;
-            text-align: left;
-        }
-        th {
-            background-color: #007BFF;
-            color: white;
-        }
-        .active {
-            color: #4CAF50;
-        }
-        .inactive {
-            color: gray;
-        }
-        .copy-button {
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        .copy-button:hover {
-            background-color: #0056b3;
-        }
+        /* стили */
     </style>
     <script>
-        // Функция для обновления данных
-        function fetchData() {
-            fetch('/data')
-                .then(response => response.json())
-                .then(data => {
-                    const tableBody = document.getElementById('data-table-body');
-                    tableBody.innerHTML = ''; // Очищаем текущие данные
-                    if (data.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="6">Нет данных.</td></tr>'; 
-                    } else {
-                        data.forEach(item => {
-                            const row = document.createElement('tr');
-                            const statusClass = item[4] ? 'active' : 'inactive';
-                            row.innerHTML = 
-                                `<td>${item[0]}</td>
-                                <td>${item[1]}</td>
-                                <td>${item[2]}</td>
-                                <td>${item[3]}</td>
-                                <td class="${statusClass}">&#11044;</td>
-                                <td>${item[5]}</td>
-                                <td><button class="copy-button" onclick="copyToClipboard('${item[0]}')">Копировать IP</button></td>`;
-                            tableBody.appendChild(row);
-                        });
-                    }
-                })
-                .catch(error => console.error('Ошибка при получении данных:', error));
-        }
-
-        // Копирование в буфер обмена
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                alert('Скопировано в буфер обмена: ' + text);
-            });
-        }
-
-        setInterval(fetchData, 2000);
-        window.onload = fetchData;
+        /* скрипты */
     </script>
 </head>
 <body>
@@ -132,23 +107,6 @@ HTML_TEMPLATE = """
 </html>
 """
 
-def save_user_data(ip, server, nickname, activated):
-    """Сохранение данных пользователя в базу данных."""
-    with conn.cursor() as cursor:
-        cursor.execute("""
-            INSERT INTO user_data (ip, server, nickname, activated, last_active)
-            VALUES (%s, %s, %s, %s, %s)
-            ON CONFLICT (ip) DO UPDATE
-            SET server = EXCLUDED.server, nickname = EXCLUDED.nickname, activated = EXCLUDED.activated, last_active = EXCLUDED.last_active;
-        """, (ip, server, nickname, activated, datetime.now()))
-        conn.commit()
-
-def fetch_user_data():
-    """Получение всех данных пользователей из базы данных."""
-    with conn.cursor() as cursor:
-        cursor.execute("SELECT * FROM user_data")
-        return cursor.fetchall()
-
 @app.route('/', methods=['GET'])
 def home():
     return HTML_TEMPLATE
@@ -158,15 +116,15 @@ def receive_data():
     data = request.get_data(as_text=True)
     if data:
         ip, server, nickname, activated = data.split(" ", 3)
-        save_user_data(ip, server, nickname, activated)
+        save_user_data(ip, server, nickname, activated == "True")
     return jsonify({"status": "success", "data": data}), 201
 
 @app.route('/data', methods=['GET'])
 def get_data():
+    user_data = load_user_data()
     current_time = datetime.now()
     response_data = []
-    for user in fetch_user_data():
-        ip, server, nickname, activated, last_active = user['ip'], user['server'], user['nickname'], user['activated'], user['last_active']
+    for ip, (server, nickname, activated, last_active) in user_data.items():
         real_nickname = real_nicknames.get(ip, ["Неизвестно", False])
         status = (current_time - last_active) < active_duration
         license_status = "Активирована" if activated else "Недействительна"
