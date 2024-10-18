@@ -226,10 +226,11 @@ def get_data():
         else:
             status = False  # Если last_active не определен, пользователь не активен
         
-        license_status = "Активирована" если activated else "Недействительна"
+        license_status = "Активирована" if activated else "Недействительна"
         response_data.append([ip, server, nickname, real_nickname[0], status, license_status])
     
     return jsonify(response_data)
+
 
 @app.route('/check_ip/<ip_address>', methods=['GET'])
 def check_ip(ip_address):
