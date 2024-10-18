@@ -236,7 +236,7 @@ def get_data():
 def check_ip(ip_address):
     if ip_address in real_nicknames:
         user_status = real_nicknames[ip_address][1]
-        return str(1 если user_status else 0), 200
+        return str(1 if user_status else 0), 200
     return "0", 200
 
 if __name__ == '__main__':
