@@ -213,7 +213,10 @@ def receive_data():
 @app.route('/data', methods=['GET'])
 def get_data():
     print("Получена какая-то дата")
-    current_time = datetime.now()  # Получаем текущее время
+    
+    # Получаем текущее время с учетом часового пояса
+    current_time = datetime.now(timezone.utc)
+    
     cur.execute("SELECT * FROM user_data;")
     users = cur.fetchall()
 
@@ -223,6 +226,10 @@ def get_data():
         
         # Проверка, что last_active действительно является datetime
         if isinstance(last_active, datetime):
+            # Приводим last_active к UTC, если оно не aware
+            if last_active.tzinfo is None:
+                last_active = last_active.replace(tzinfo=timezone.utc)
+                
             time_diff = current_time - last_active
             status = time_diff < active_duration  # Проверяем, прошло ли больше 30 секунд
             print("status:", status)
@@ -237,6 +244,7 @@ def get_data():
         response_data.append([ip, server, nickname, real_nickname[0], status, license_status])
     
     return jsonify(response_data)
+
 
 
 
