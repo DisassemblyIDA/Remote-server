@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify, render_template_string
 from datetime import datetime, timedelta
 import json
 import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 app = Flask(__name__)
 
@@ -29,27 +31,55 @@ real_nicknames = {
     "176.59.215.218": ["Title", True],
     "24.203.151.174": ["Tahmid", True]
 }
-DATA_FILE = 'user_data.json'
 
+# Получите строку подключения из переменной окружения
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:yMoXvzZzZrsmDVpEKXxGSESPkSjQDAXZ@postgres.railway.internal:5432/railway")
 
-def save_data_to_file():
-    """Сохранение данных в файл (чистая функция)."""
-    with open(DATA_FILE, 'w') as file:
-        json.dump(
-            {ip: [server, nickname, activated, last_active.isoformat()]
-             for ip, (server, nickname, activated, last_active) in user_data.items()},
-            file
+# Создание движка базы данных
+engine = create_engine(DATABASE_URL, connect_args={"sslmode": "require"})
+Session = sessionmaker(bind=engine)
+session = Session()
+
+# Инициализация базы данных
+def init_db():
+    with engine.connect() as conn:
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_data (
+            ip VARCHAR PRIMARY KEY,
+            server VARCHAR,
+            nickname VARCHAR,
+            activated BOOLEAN,
+            last_active TIMESTAMP
         )
+        """)
 
+def load_data_from_db():
+    """Загрузка данных из базы данных."""
+    result = session.execute("SELECT * FROM user_data").fetchall()
+    for row in result:
+        ip, server, nickname, activated, last_active = row
+        user_data[ip] = (server, nickname, activated, last_active)
 
-def load_data_from_file():
-    """Загрузка данных из файла (чистая функция)."""
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'r') as file:
-            saved_data = json.load(file)
-            for ip, (server, nickname, activated, last_active) in saved_data.items():
-                user_data[ip] = (server, nickname, activated, datetime.fromisoformat(last_active))
-
+def save_data_to_db():
+    """Сохранение данных в базу данных."""
+    for ip, (server, nickname, activated, last_active) in user_data.items():
+        session.execute(
+            """
+            INSERT INTO user_data (ip, server, nickname, activated, last_active) 
+            VALUES (:ip, :server, :nickname, :activated, :last_active)
+            ON CONFLICT(ip) 
+            DO UPDATE SET server = excluded.server, nickname = excluded.nickname, 
+            activated = excluded.activated, last_active = excluded.last_active
+            """,
+            {
+                "ip": ip,
+                "server": server,
+                "nickname": nickname,
+                "activated": activated,
+                "last_active": last_active
+            }
+        )
+    session.commit()
 
 # HTML-шаблон с темной темой и кнопками копирования
 HTML_TEMPLATE = """
@@ -164,11 +194,9 @@ HTML_TEMPLATE = """
 </html>
 """
 
-
 @app.route('/', methods=['GET'])
 def home():
     return HTML_TEMPLATE
-
 
 @app.route('/data', methods=['POST'])
 def receive_data():
@@ -176,9 +204,8 @@ def receive_data():
     if data:
         ip, server, nickname, activated = data.split(" ", 3)
         user_data[ip] = (server, nickname, activated, datetime.now())
-        save_data_to_file()
+        save_data_to_db()
     return jsonify({"status": "success", "data": data}), 201
-
 
 @app.route('/data', methods=['GET'])
 def get_data():
@@ -191,7 +218,6 @@ def get_data():
         response_data.append([ip, server, nickname, real_nickname[0], status, license_status])
     return jsonify(response_data)
 
-
 @app.route('/check_ip/<ip_address>', methods=['GET'])
 def check_ip(ip_address):
     if ip_address in real_nicknames:
@@ -199,7 +225,7 @@ def check_ip(ip_address):
         return str(1 if user_status else 0), 200
     return "0", 200
 
-
 if __name__ == '__main__':
-    load_data_from_file()
+    init_db()  # Инициализация базы данных
+    load_data_from_db()  # Загрузка данных из базы данных
     app.run(host='0.0.0.0', port=8080, debug=True)
