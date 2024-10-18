@@ -1,14 +1,11 @@
 from flask import Flask, request, jsonify, render_template_string
 from datetime import datetime, timedelta
-import json
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
 
 app = Flask(__name__)
 
-# Глобальный словарь для хранения данных пользователей
-user_data = {}
 # Длительность активности в секундах
 active_duration = timedelta(seconds=30)
 
@@ -16,70 +13,12 @@ active_duration = timedelta(seconds=30)
 real_nicknames = {
     "109.72.249.137": ["Mr.Butovsky", True],
     "94.25.173.251": ["Mr.Butovsky_2", True],
-    "176.15.170.199": ["Noysi", True],
-    "176.15.170.1": ["Noysi_2", True],
-    "176.15.170.18": ["Noysi_3", True],
-    "85.140.18.73": ["Magnus", True],
-    "176.192.161.123": ["Praice", True],
-    "193.0.155.136": ["Kointo", True],
-    "185.153.47.45": ["Spid4", True],
-    "178.126.31.239": ["Terakomari", True],
-    "90.151.151.119": ["Magnus2", True],
-    "37.195.181.198": ["Demfy", True],
-    "122.166.86.148": ["Redflame Irido", True],
-    "116.75.72.13": ["Redflame Irido", True],
-    "176.59.215.218": ["Title", True],
-    "24.203.151.174": ["Tahmid", True]
+    # ... (остальные записи)
 }
 
-# Получите строку подключения из переменной окружения
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:yMoXvzZzZrsmDVpEKXxGSESPkSjQDAXZ@postgres.railway.internal:5432/railway")
-
-# Создание движка базы данных
-engine = create_engine(DATABASE_URL, connect_args={"sslmode": "require"})
-Session = sessionmaker(bind=engine)
-session = Session()
-
-# Инициализация базы данных
-def init_db():
-    with engine.connect() as conn:
-        conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS user_data (
-            ip VARCHAR PRIMARY KEY,
-            server VARCHAR,
-            nickname VARCHAR,
-            activated BOOLEAN,
-            last_active TIMESTAMP
-        )
-        """))
-
-def load_data_from_db():
-    """Загрузка данных из базы данных."""
-    result = session.execute("SELECT * FROM user_data").fetchall()
-    for row in result:
-        ip, server, nickname, activated, last_active = row
-        user_data[ip] = (server, nickname, activated, last_active)
-
-def save_data_to_db():
-    """Сохранение данных в базу данных."""
-    for ip, (server, nickname, activated, last_active) in user_data.items():
-        session.execute(
-            text("""
-            INSERT INTO user_data (ip, server, nickname, activated, last_active) 
-            VALUES (:ip, :server, :nickname, :activated, :last_active)
-            ON CONFLICT(ip) 
-            DO UPDATE SET server = excluded.server, nickname = excluded.nickname, 
-            activated = excluded.activated, last_active = excluded.last_active
-            """),
-            {
-                "ip": ip,
-                "server": server,
-                "nickname": nickname,
-                "activated": activated,
-                "last_active": last_active
-            }
-        )
-    session.commit()
+# Настройка соединения с базой данных PostgreSQL
+DATABASE_URL = os.getenv("postgresql://postgres:rbMyAhNzxQkXlBrLJFtxUsHRluYLYEEK@postgres.railway.internal:5432/railway")
+conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 # HTML-шаблон с темной темой и кнопками копирования
 HTML_TEMPLATE = """
@@ -145,15 +84,14 @@ HTML_TEMPLATE = """
                         data.forEach(item => {
                             const row = document.createElement('tr');
                             const statusClass = item[4] ? 'active' : 'inactive';
-                            row.innerHTML = `
-                                <td>${item[0]}</td>
+                            row.innerHTML = 
+                                `<td>${item[0]}</td>
                                 <td>${item[1]}</td>
                                 <td>${item[2]}</td>
                                 <td>${item[3]}</td>
                                 <td class="${statusClass}">&#11044;</td>
                                 <td>${item[5]}</td>
-                                <td><button class="copy-button" onclick="copyToClipboard('${item[0]}')">Копировать IP</button></td>
-                            `;
+                                <td><button class="copy-button" onclick="copyToClipboard('${item[0]}')">Копировать IP</button></td>`;
                             tableBody.appendChild(row);
                         });
                     }
@@ -194,6 +132,23 @@ HTML_TEMPLATE = """
 </html>
 """
 
+def save_user_data(ip, server, nickname, activated):
+    """Сохранение данных пользователя в базу данных."""
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            INSERT INTO user_data (ip, server, nickname, activated, last_active)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (ip) DO UPDATE
+            SET server = EXCLUDED.server, nickname = EXCLUDED.nickname, activated = EXCLUDED.activated, last_active = EXCLUDED.last_active;
+        """, (ip, server, nickname, activated, datetime.now()))
+        conn.commit()
+
+def fetch_user_data():
+    """Получение всех данных пользователей из базы данных."""
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM user_data")
+        return cursor.fetchall()
+
 @app.route('/', methods=['GET'])
 def home():
     return HTML_TEMPLATE
@@ -203,18 +158,18 @@ def receive_data():
     data = request.get_data(as_text=True)
     if data:
         ip, server, nickname, activated = data.split(" ", 3)
-        user_data[ip] = (server, nickname, activated, datetime.now())
-        save_data_to_db()
+        save_user_data(ip, server, nickname, activated)
     return jsonify({"status": "success", "data": data}), 201
 
 @app.route('/data', methods=['GET'])
 def get_data():
     current_time = datetime.now()
     response_data = []
-    for ip, (server, nickname, activated, last_active) in user_data.items():
+    for user in fetch_user_data():
+        ip, server, nickname, activated, last_active = user['ip'], user['server'], user['nickname'], user['activated'], user['last_active']
         real_nickname = real_nicknames.get(ip, ["Неизвестно", False])
         status = (current_time - last_active) < active_duration
-        license_status = "Активирована" if activated == "True" else "Недействительна"
+        license_status = "Активирована" if activated else "Недействительна"
         response_data.append([ip, server, nickname, real_nickname[0], status, license_status])
     return jsonify(response_data)
 
@@ -223,9 +178,7 @@ def check_ip(ip_address):
     if ip_address in real_nicknames:
         user_status = real_nicknames[ip_address][1]
         return str(1 if user_status else 0), 200
-    return "IP не найден", 404
+    return "0", 200
 
 if __name__ == '__main__':
-    init_db()  # Инициализация базы данных
-    load_data_from_db()  # Загрузка данных из базы данных
-    app.run(host='0.0.0.0', port=8080)
+    app.run(host='0.0.0.0', port=8080, debug=True)
