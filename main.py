@@ -224,12 +224,14 @@ def get_data():
             last_active = last_active.date()
         
         # Проверка активности пользователя
-        status = (current_time - last_active).days < active_duration
+        delta_days = (current_time - last_active).days
+        status = delta_days < active_duration
         
         license_status = "Активирована" if activated else "Недействительна"
         response_data.append([ip, server, nickname, real_nickname[0], status, license_status])
     
     return jsonify(response_data)
+
 
 
 @app.route('/check_ip/<ip_address>', methods=['GET'])
