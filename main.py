@@ -212,6 +212,7 @@ def receive_data():
 
 @app.route('/data', methods=['GET'])
 def get_data():
+    print("Получена какая-то дата")
     current_time = datetime.now()  # Получаем текущее время
     cur.execute("SELECT * FROM user_data;")
     users = cur.fetchall()
