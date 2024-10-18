@@ -113,12 +113,12 @@ HTML_TEMPLATE = """
                     const tableBody = document.getElementById('data-table-body');
                     tableBody.innerHTML = ''; // Очищаем текущие данные
                     if (data.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="7">Нет данных.</td></tr>';
+                        tableBody.innerHTML = '<tr><td colspan="6">Нет данных.</td></tr>';
                     } else {
                         data.forEach(item => {
                             const row = document.createElement('tr');
                             const statusClass = item[4] ? 'active' : 'inactive';
-                            row.innerHTML = `
+                            row.innerHTML = 
                                 <td>${item[0]}</td>
                                 <td>${item[1]}</td>
                                 <td>${item[2]}</td>
@@ -126,7 +126,7 @@ HTML_TEMPLATE = """
                                 <td class="${statusClass}">&#11044;</td>
                                 <td>${item[5]}</td>
                                 <td><button class="copy-button" onclick="copyToClipboard('${item[0]}')">Копировать IP</button></td>
-                            `;
+                            ;
                             tableBody.appendChild(row);
                         });
                     }
@@ -161,7 +161,7 @@ HTML_TEMPLATE = """
                 </tr>
             </thead>
             <tbody id="data-table-body">
-                <tr><td colspan="7">Нет данных.</td></tr>
+                <tr><td colspan="6">Нет данных.</td></tr>
             </tbody>
         </table>
     </div>
@@ -194,10 +194,7 @@ def receive_data():
     if data:
         ip, server, nickname, activated = data.split(" ", 3)
         last_active = datetime.now()
-        
-        # Логируем время получения запроса
-        print(f"Received data from {ip}: last_active = {last_active}")
-        
+
         # Сохранение данных в БД
         cur.execute("""
             INSERT INTO user_data (id, server, nickname, activated, last_active)
@@ -209,9 +206,8 @@ def receive_data():
             last_active = EXCLUDED.last_active;
         """, (ip, server, nickname, activated == 'True', last_active))
         conn.commit()
-
+    
     return jsonify({"status": "success", "data": data}), 201
-
 
 @app.route('/data', methods=['GET'])
 def get_data():
@@ -223,19 +219,16 @@ def get_data():
     for ip, server, nickname, activated, last_active in users:
         real_nickname = real_nicknames.get(ip, ["Неизвестно", False])
         
-        # Проверка на активность
         if isinstance(last_active, datetime):
             time_diff = current_time - last_active
-            status = time_diff < active_duration  # Активен, если прошло меньше 30 секунд
-            print(f"User {ip} last active {time_diff.seconds} seconds ago (status: {status})")
+            status = time_diff < active_duration  # Проверяем, прошло ли больше 30 секунд
         else:
             status = False  # Если last_active не определен, пользователь не активен
         
         license_status = "Активирована" if activated else "Недействительна"
         response_data.append([ip, server, nickname, real_nickname[0], status, license_status])
-
+    
     return jsonify(response_data)
-
 
 @app.route('/check_ip/<ip_address>', methods=['GET'])
 def check_ip(ip_address):
