@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template_string
 from datetime import datetime, timedelta
 import json
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 app = Flask(__name__)
@@ -43,7 +43,7 @@ session = Session()
 # Инициализация базы данных
 def init_db():
     with engine.connect() as conn:
-        conn.execute("""
+        conn.execute(text("""
         CREATE TABLE IF NOT EXISTS user_data (
             ip VARCHAR PRIMARY KEY,
             server VARCHAR,
@@ -51,7 +51,7 @@ def init_db():
             activated BOOLEAN,
             last_active TIMESTAMP
         )
-        """)
+        """))
 
 def load_data_from_db():
     """Загрузка данных из базы данных."""
@@ -64,13 +64,13 @@ def save_data_to_db():
     """Сохранение данных в базу данных."""
     for ip, (server, nickname, activated, last_active) in user_data.items():
         session.execute(
-            """
+            text("""
             INSERT INTO user_data (ip, server, nickname, activated, last_active) 
             VALUES (:ip, :server, :nickname, :activated, :last_active)
             ON CONFLICT(ip) 
             DO UPDATE SET server = excluded.server, nickname = excluded.nickname, 
             activated = excluded.activated, last_active = excluded.last_active
-            """,
+            """),
             {
                 "ip": ip,
                 "server": server,
@@ -223,9 +223,9 @@ def check_ip(ip_address):
     if ip_address in real_nicknames:
         user_status = real_nicknames[ip_address][1]
         return str(1 if user_status else 0), 200
-    return "0", 200
+    return "IP не найден", 404
 
 if __name__ == '__main__':
     init_db()  # Инициализация базы данных
     load_data_from_db()  # Загрузка данных из базы данных
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    app.run(host='0.0.0.0', port=8080)
