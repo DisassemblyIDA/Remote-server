@@ -231,5 +231,12 @@ def get_data():
     
     return jsonify(response_data)
 
+@app.route('/check_ip/<ip_address>', methods=['GET'])
+def check_ip(ip_address):
+    if ip_address in real_nicknames:
+        user_status = real_nicknames[ip_address][1]
+        return str(1 if user_status else 0), 200
+    return "0", 200
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=True)
