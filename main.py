@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, render_template_string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone  # Добавлен timezone
 import psycopg2
 import os
 
