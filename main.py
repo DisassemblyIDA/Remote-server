@@ -11,7 +11,7 @@ conn = psycopg2.connect(DATABASE_URL, sslmode='require')
 cur = conn.cursor()
 
 # Длительность активности в секундах
-active_duration = timedelta(seconds=30)
+active_duration = timedelta(seconds=30) 
 
 # Словарь настоящих никнеймов по IP и их статусам
 real_nicknames = {
@@ -209,9 +209,22 @@ def receive_data():
     
     return jsonify({"status": "success", "data": data}), 201
 
+@app.route('/update_activity', methods=['POST'])
+def update_activity():
+    # Получение IP-адреса пользователя (например, из заголовков или данных запроса)
+    ip = request.remote_addr
+    
+    # Обновление времени последней активности пользователя в базе данных
+    current_time = datetime.now()  # Текущее время
+    cur.execute("UPDATE user_data SET last_active = %s WHERE ip = %s", (current_time, ip))
+    conn.commit()  # Сохраняем изменения в базе данных
+    
+    return "Activity updated", 200
+
+
 @app.route('/data', methods=['GET'])
 def get_data():
-    current_time = datetime.now().date()  # Приводим к дате
+    current_time = datetime.now()  # Получаем текущее время
     cur.execute("SELECT * FROM user_data;")
     users = cur.fetchall()
 
@@ -219,13 +232,12 @@ def get_data():
     for ip, server, nickname, activated, last_active in users:
         real_nickname = real_nicknames.get(ip, ["Неизвестно", False])
         
-        # Приведение last_active к типу даты, если оно не datetime
+        # Преобразуем last_active в datetime, если он является строкой или другим типом
         if isinstance(last_active, datetime):
-            last_active = last_active.date()
-        
-        # Проверка активности пользователя
-        delta_days = (current_time - last_active).days
-        status = delta_days < active_duration.days  # Используем active_duration.days для сравнения
+            time_diff = current_time - last_active
+            status = time_diff < active_duration  # Проверяем, прошло ли больше 30 секунд
+        else:
+            status = False  # Если last_active не определен, пользователь не активен
         
         license_status = "Активирована" if activated else "Недействительна"
         response_data.append([ip, server, nickname, real_nickname[0], status, license_status])
