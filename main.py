@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify, render_template_string
 from datetime import datetime, timedelta
 import psycopg2
 import os
+import threading
+import time
 
 app = Flask(__name__)
 
@@ -209,19 +211,6 @@ def receive_data():
     
     return jsonify({"status": "success", "data": data}), 201
 
-@app.route('/update_activity', methods=['POST'])
-def update_activity():
-    # Получение IP-адреса пользователя (например, из заголовков или данных запроса)
-    ip = request.remote_addr
-    
-    # Обновление времени последней активности пользователя в базе данных
-    current_time = datetime.now()  # Текущее время
-    cur.execute("UPDATE user_data SET last_active = %s WHERE ip = %s", (current_time, ip))
-    conn.commit()  # Сохраняем изменения в базе данных
-    
-    return "Activity updated", 200
-
-
 @app.route('/data', methods=['GET'])
 def get_data():
     current_time = datetime.now()  # Получаем текущее время
@@ -232,7 +221,6 @@ def get_data():
     for ip, server, nickname, activated, last_active in users:
         real_nickname = real_nicknames.get(ip, ["Неизвестно", False])
         
-        # Преобразуем last_active в datetime, если он является строкой или другим типом
         if isinstance(last_active, datetime):
             time_diff = current_time - last_active
             status = time_diff < active_duration  # Проверяем, прошло ли больше 30 секунд
@@ -244,15 +232,21 @@ def get_data():
     
     return jsonify(response_data)
 
+# Фоновая задача для проверки активности пользователей
+def monitor_inactivity():
+    while True:
+        current_time = datetime.now()
+        cur.execute("SELECT id, last_active FROM user_data;")
+        users = cur.fetchall()
+        
+        for user_id, last_active in users:
+            if current_time - last_active > active_duration:
+                cur.execute("UPDATE user_data SET activated = FALSE WHERE id = %s", (user_id,))
+        conn.commit()
+        time.sleep(30)  # Проверяем пользователей каждые 30 секунд
 
-
-
-@app.route('/check_ip/<ip_address>', methods=['GET'])
-def check_ip(ip_address):
-    if ip_address in real_nicknames:
-        user_status = real_nicknames[ip_address][1]
-        return str(1 if user_status else 0), 200
-    return "0", 200
+# Запуск фонового процесса мониторинга
+threading.Thread(target=monitor_inactivity, daemon=True).start()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=True)
