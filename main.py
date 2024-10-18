@@ -191,6 +191,7 @@ def home():
 @app.route('/data', methods=['POST'])
 def receive_data():
     data = request.get_data(as_text=True)
+    print(f"Получены данные: {data}")  # Логирование полученных данных
     if data:
         ip, server, nickname, activated = data.split(" ", 3)
         last_active = datetime.now()
