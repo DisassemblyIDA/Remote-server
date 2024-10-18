@@ -211,18 +211,26 @@ def receive_data():
 
 @app.route('/data', methods=['GET'])
 def get_data():
-    current_time = datetime.now()
+    current_time = datetime.now().date()  # Приводим к дате
     cur.execute("SELECT * FROM user_data;")
     users = cur.fetchall()
 
     response_data = []
     for ip, server, nickname, activated, last_active in users:
         real_nickname = real_nicknames.get(ip, ["Неизвестно", False])
-        status = (current_time - last_active) < active_duration
+        
+        # Приведение last_active к типу даты, если оно не datetime
+        if isinstance(last_active, datetime):
+            last_active = last_active.date()
+        
+        # Проверка активности пользователя
+        status = (current_time - last_active).days < active_duration
+        
         license_status = "Активирована" if activated else "Недействительна"
         response_data.append([ip, server, nickname, real_nickname[0], status, license_status])
     
     return jsonify(response_data)
+
 
 @app.route('/check_ip/<ip_address>', methods=['GET'])
 def check_ip(ip_address):
