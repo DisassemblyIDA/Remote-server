@@ -225,12 +225,13 @@ def get_data():
         
         # Проверка активности пользователя
         delta_days = (current_time - last_active).days
-        status = delta_days < active_duration
+        status = delta_days < active_duration.days  # Используем active_duration.days для сравнения
         
         license_status = "Активирована" if activated else "Недействительна"
         response_data.append([ip, server, nickname, real_nickname[0], status, license_status])
     
     return jsonify(response_data)
+
 
 
 
