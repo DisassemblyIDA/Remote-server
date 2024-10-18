@@ -194,7 +194,10 @@ def receive_data():
     if data:
         ip, server, nickname, activated = data.split(" ", 3)
         last_active = datetime.now()
-
+        
+        # Логируем время получения запроса
+        print(f"Received data from {ip}: last_active = {last_active}")
+        
         # Сохранение данных в БД
         cur.execute("""
             INSERT INTO user_data (id, server, nickname, activated, last_active)
@@ -206,8 +209,9 @@ def receive_data():
             last_active = EXCLUDED.last_active;
         """, (ip, server, nickname, activated == 'True', last_active))
         conn.commit()
-    
+
     return jsonify({"status": "success", "data": data}), 201
+
 
 @app.route('/data', methods=['GET'])
 def get_data():
@@ -219,17 +223,19 @@ def get_data():
     for ip, server, nickname, activated, last_active in users:
         real_nickname = real_nicknames.get(ip, ["Неизвестно", False])
         
-        # Преобразуем last_active в datetime, если он является строкой или другим типом
+        # Проверка на активность
         if isinstance(last_active, datetime):
             time_diff = current_time - last_active
-            status = time_diff < active_duration  # Проверяем, прошло ли больше 30 секунд
+            status = time_diff < active_duration  # Активен, если прошло меньше 30 секунд
+            print(f"User {ip} last active {time_diff.seconds} seconds ago (status: {status})")
         else:
             status = False  # Если last_active не определен, пользователь не активен
         
         license_status = "Активирована" if activated else "Недействительна"
         response_data.append([ip, server, nickname, real_nickname[0], status, license_status])
-    
+
     return jsonify(response_data)
+
 
 @app.route('/check_ip/<ip_address>', methods=['GET'])
 def check_ip(ip_address):
