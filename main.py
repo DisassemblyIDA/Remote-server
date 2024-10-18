@@ -224,6 +224,7 @@ def get_data():
         if isinstance(last_active, datetime):
             time_diff = current_time - last_active
             status = time_diff < active_duration  # Проверяем, прошло ли больше 30 секунд
+            print("status:", status)
         else:
             status = False  # Если last_active не определен, пользователь не активен
             print("last_active не определен")
