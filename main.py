@@ -226,6 +226,7 @@ def get_data():
             status = time_diff < active_duration  # Проверяем, прошло ли больше 30 секунд
         else:
             status = False  # Если last_active не определен, пользователь не активен
+            print("last_active не определен")
         
         # Лицензия
         license_status = "Активирована" if activated else "Недействительна"
