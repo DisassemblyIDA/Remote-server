@@ -31,7 +31,8 @@ real_nicknames = {
     "122.166.86.148": ["Redflame Irido", True],
     "116.75.72.13": ["Redflame Irido", True],
     "176.59.215.218": ["Title", True],
-    "24.203.151.174": ["Tahmid", True]
+    "24.203.151.174": ["Tahmid", True],
+    "178.126.155.181": ["Zeref", True]
     
 }
 
