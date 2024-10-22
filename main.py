@@ -18,6 +18,7 @@ real_nicknames = {
     "109.72.249.137": ["Mr.Butovsky", True],
     "94.25.173.251": ["Mr.Butovsky", True],
     "94.25.175.132": ["Mr.Butovsky", True],
+    "94.25.174.119": ["Mr.Butovsky", True],
     "176.15.170.199": ["Noysi", True],
     "176.15.170.1": ["Noysi", True],
     "176.15.170.18": ["Noysi", True],
@@ -36,6 +37,7 @@ real_nicknames = {
     "178.126.155.181": ["Zeref", True],
     "178.126.144.108": ["Zeref", True],
     "37.248.172.25": ["Lastik", True]
+    
 }
 
 # HTML-шаблон с темной темой и кнопками копирования
