@@ -19,6 +19,7 @@ real_nicknames = {
     "94.25.173.251": ["Mr.Butovsky", True],
     "94.25.175.132": ["Mr.Butovsky", True],
     "94.25.174.119": ["Mr.Butovsky", True],
+    "94.25.174.96": ["Mr.Butovsky", True],
     "176.15.170.199": ["Noysi", True],
     "176.15.170.1": ["Noysi", True],
     "176.15.170.18": ["Noysi", True],
