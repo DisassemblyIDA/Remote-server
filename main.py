@@ -45,7 +45,7 @@ real_nicknames = {
     "176.15.170.177": ["Noysi", True],
     "116.72.73.15": ["Redflame Irido", True],
     "95.220.27.219": ["Praice", True]
-    "94.50.16.215": ["Magnus", True],
+    "94.50.16.215": ["Magnus", True]
 }
 
 # HTML-шаблон с темной темой и кнопками копирования
