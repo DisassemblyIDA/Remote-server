@@ -48,8 +48,10 @@ real_nicknames = {
     "198.16.66.139": ["Magnus", True],
     "94.25.173.49": ["Mr.Butovsky", True], 
     "37.248.168.112": ["Lastik", True],
-    "2.63.255.157": ["Manje", True]
-}
+    "2.63.255.157": ["Manje", True],
+    "37.248.221.146": [Lastik", True]
+}   
+
 
 # HTML-шаблон с темной темой и кнопками копирования
 HTML_TEMPLATE = """
