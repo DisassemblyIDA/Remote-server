@@ -38,8 +38,7 @@ real_nicknames = {
     "178.126.155.181": ["Zeref", True],
     "178.126.144.108": ["Zeref", True],
     "37.248.172.25": ["Lastik", True],
-    "188.18.225.147": ["Magnus", True],
-    "188.19.39.149" : ["Magnus", True], 
+    "37.248.218.21": ["Lastik", True],
     "178.126.3.46"  : ["Zeref", True],
     "37.248.218.10": ["Lastik", True],
     "176.15.170.177": ["Noysi", True],
@@ -61,7 +60,7 @@ real_nicknames = {
     "37.248.172.223": ["Lastik", True],
     "185.253.180.24": ["Noysi", True],
     "176.15.170.188": ["Noysi", True],
-    "37.248.218.21": ["Lastik", True]
+    
 
 }   
 
