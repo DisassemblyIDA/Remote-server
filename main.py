@@ -24,12 +24,12 @@ real_nicknames = {
     "176.15.170.1": ["Noysi", True],
     "176.15.170.18": ["Noysi", True],
     "176.15.170.17": ["Noysi", True],
-    "85.140.18.73": ["Magnus", True],
+    "37.248.173.144": ["Lastik", True],
     "176.192.161.123": ["Praice", True],
     "193.0.155.136": ["Kointo", True],
-    "185.153.47.45": ["Spid4", True],
+    "178.126.224.165": ["Zeref", True],
     "178.126.31.239": ["Terakomari", True],
-    "90.151.151.119": ["Magnus2", True],
+    "31.0.77.181": ["Lastik", True],
     "37.195.181.198": ["Demfy", True],
     "122.166.86.148": ["Redflame Irido", True],
     "116.75.72.13": ["Redflame Irido", True],
@@ -53,9 +53,9 @@ real_nicknames = {
     "178.126.3.46": ["Zeref", True],
     "37.248.175.198": ["Lastik", True],
     "176.15.170.188": ["Noysi", True],
-    "31.0.77.181": ["Lastik", True],
-    "178.126.224.165": ["Zeref", True],
-    "37.248.173.144": ["Lastik", True],
+    
+    
+    
     
    
     
