@@ -24,12 +24,12 @@ real_nicknames = {
     "176.15.170.1": ["Noysi", True],
     "176.15.170.18": ["Noysi", True],
     "176.15.170.17": ["Noysi", True],
-    "37.248.173.144": ["Lastik", True],
+    
     "176.192.161.123": ["Praice", True],
     "193.0.155.136": ["Kointo", True],
     "178.126.224.165": ["Zeref", True],
     "178.126.31.239": ["Terakomari", True],
-    "31.0.77.181": ["Lastik", True],
+    
     "37.195.181.198": ["Demfy", True],
     "122.166.86.148": ["Redflame Irido", True],
     "116.75.72.13": ["Redflame Irido", True],
@@ -37,23 +37,23 @@ real_nicknames = {
     "24.203.151.174": ["Tahmid", True],
     "178.126.155.181": ["Zeref", True],
     "178.126.144.108": ["Zeref", True],
-    "37.248.172.25": ["Lastik", True],
-    "37.248.218.21": ["Lastik", True],
+    
+    
     "178.126.3.46"  : ["Zeref", True],
-    "37.248.218.10": ["Lastik", True],
+    
     "176.15.170.177": ["Noysi", True],
     "116.72.73.15": ["Redflame Irido", True],
     "95.220.27.219": ["Praice", True],
     "185.253.180.24": ["Noysi", True],
-    "37.248.172.223": ["Lastik", True],
+    
     "94.25.173.49": ["Mr.Butovsky", True], 
-    "37.248.168.112": ["Lastik", True],
+    
     "2.63.255.157": ["Manje", True],
-    "37.248.221.146": ["Lastik", True],
+    
     "178.126.3.46": ["Zeref", True],
-    "37.248.175.198": ["Lastik", True],
+    
     "176.15.170.188": ["Noysi", True],
-    "37.248.217.235": ["Lastik", True],
+    
     "178.126.238.128": ["Zeref", True],
     "176.15.170.172": ["Noysi", True],
     "27.4.53.14": ["Redflame Irido", True],
@@ -61,14 +61,7 @@ real_nicknames = {
     "94.25.171.227": ["Mr.Butovsky", True],
     "176.15.170.139": ["Noysi", True],
     "176.15.170.138": ["Noysi", True],
-    "176.15.170.182": ["Noysi", True],
-    "37.248.169.160": ["Lastik", True],
-    "37.248.172.237": ["Lastik", True],
-    "178.126.241.37": ["Zeref", True],
-    "37.248.174.19": ["Lastik", True],
-    "176.15.170.146": ["Noysi", True],
-    "178.126.209.193": ["Zeref", True],
-    "37.248.220.92": ["Lastik", True]
+    "176.15.170.182": ["Noysi", True]
     
     
     
