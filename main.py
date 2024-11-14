@@ -24,12 +24,12 @@ real_nicknames = {
     "176.15.170.1": ["Noysi", True],
     "176.15.170.18": ["Noysi", True],
     "176.15.170.17": ["Noysi", True],
-    
-    "176.192.161.123": ["Praice", True],
+    "176.15.170.138": ["Noysi", True],
+     "176.15.170.182": ["Noysi", True],
     "193.0.155.136": ["Kointo", True],
     "178.126.224.165": ["Zeref", True],
     "178.126.31.239": ["Terakomari", True],
-    
+    "2.63.255.157": ["Manje", True],
     "37.195.181.198": ["Demfy", True],
     "122.166.86.148": ["Redflame Irido", True],
     "116.75.72.13": ["Redflame Irido", True],
@@ -37,31 +37,31 @@ real_nicknames = {
     "24.203.151.174": ["Tahmid", True],
     "178.126.155.181": ["Zeref", True],
     "178.126.144.108": ["Zeref", True],
-    
-    
-    "178.126.3.46"  : ["Zeref", True],
-    
+    "94.25.171.227": ["Mr.Butovsky", True],
+    "178.126.3.46": ["Zeref", True],
+    "31.162.228.195": ["Magnus", True],
+    "176.15.170.139": ["Noysi", True],
+    "176.15.170.188": ["Noysi", True],
     "176.15.170.177": ["Noysi", True],
     "116.72.73.15": ["Redflame Irido", True],
     "95.220.27.219": ["Praice", True],
     "185.253.180.24": ["Noysi", True],
-    
-    "94.25.173.49": ["Mr.Butovsky", True], 
-    
-    "2.63.255.157": ["Manje", True],
-    
-    "178.126.3.46": ["Zeref", True],
-    
-    "176.15.170.188": ["Noysi", True],
-    
-    "178.126.238.128": ["Zeref", True],
     "176.15.170.172": ["Noysi", True],
+    "94.25.173.49": ["Mr.Butovsky", True], 
     "27.4.53.14": ["Redflame Irido", True],
-    "31.162.228.195": ["Magnus", True],
-    "94.25.171.227": ["Mr.Butovsky", True],
-    "176.15.170.139": ["Noysi", True],
-    "176.15.170.138": ["Noysi", True],
-    "176.15.170.182": ["Noysi", True]
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     
     
