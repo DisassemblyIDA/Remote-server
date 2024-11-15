@@ -50,7 +50,8 @@ real_nicknames = {
     "94.25.173.49": ["Mr.Butovsky", True], 
     "27.4.53.14": ["Redflame Irido", True],
     "176.15.170.12": ["Noysi", True],
-    "94.51.15.179": ["Magnus", True]
+    "94.51.15.179": ["Magnus", True],
+    "178.126.209.193": ["Zeref", True]
     
     
     
