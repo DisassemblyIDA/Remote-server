@@ -54,7 +54,8 @@ real_nicknames = {
     "178.126.209.193": ["Zeref", True],
     "176.15.170.174": ["Noysi", True],
     "188.17.212.184": ["Magnus", True],
-    "94.51.17.225": ["Magnus", True]
+    "94.51.17.225": ["Magnus", True],
+    "176.59.198.251": ["Titl", True]
     
     
     
