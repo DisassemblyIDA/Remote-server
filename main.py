@@ -151,7 +151,6 @@ def receive_data():
     ip = data.get("ip")
     server = data.get("server")
     nickname = data.get("nickname")
-    real_nickname = data.get("real_nickname", "None")  # Получение real_nickname, по умолчанию "None"
     license_active = data.get("license_status") == "activated"
     last_active = datetime.now(timezone.utc)
 
@@ -159,34 +158,31 @@ def receive_data():
         return jsonify({"error": "deviceid is required"}), 400
 
     try:
+        # Если deviceid равен "-", вставляем с уникальностью по IP, но обновляем если IP уже существует
         if deviceid == "-":
-            # Вставляем с уникальностью по IP
+            # Проверка, если уже существует запись с таким ip, то обновляем данные
             cur.execute("""
-                INSERT INTO user_data (deviceid, ip, server, nickname, real_nickname, license_active, last_active, allowed)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (ip) DO UPDATE SET
-                deviceid = EXCLUDED.deviceid,  -- Обновляем deviceid
-                server = EXCLUDED.server,
-                nickname = EXCLUDED.nickname,
-                real_nickname = EXCLUDED.real_nickname,
-                license_active = EXCLUDED.license_active,
-                last_active = EXCLUDED.last_active,
-                allowed = EXCLUDED.allowed;
-            """, (deviceid, ip, server, nickname, real_nickname, license_active, last_active, False))
+                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (ip) DO UPDATE 
+                SET deviceid = EXCLUDED.deviceid,
+                    server = EXCLUDED.server,
+                    nickname = EXCLUDED.nickname,
+                    license_active = EXCLUDED.license_active,
+                    last_active = EXCLUDED.last_active;
+            """, (deviceid, ip, server, nickname, license_active, last_active, False))
         else:
             # Для других случаев — обычная вставка с обновлением в случае конфликта
             cur.execute("""
-                INSERT INTO user_data (deviceid, ip, server, nickname, real_nickname, license_active, last_active, allowed)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (deviceid) DO UPDATE SET
                 ip = EXCLUDED.ip,
                 server = EXCLUDED.server,
                 nickname = EXCLUDED.nickname,
-                real_nickname = EXCLUDED.real_nickname,
                 license_active = EXCLUDED.license_active,
-                last_active = EXCLUDED.last_active,
-                allowed = EXCLUDED.allowed;
-            """, (deviceid, ip, server, nickname, real_nickname, license_active, last_active, False))
+                last_active = EXCLUDED.last_active;
+            """, (deviceid, ip, server, nickname, license_active, last_active, False))
 
         conn.commit()
         return jsonify({"status": "success"}), 201
@@ -196,6 +192,7 @@ def receive_data():
         conn.rollback()  # Откатить транзакцию в случае ошибки
         print("Error occurred while receiving data:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 @app.route('/data', methods=['GET'])
 def get_data():
