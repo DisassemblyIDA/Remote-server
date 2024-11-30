@@ -21,10 +21,11 @@ def create_table():
             ip TEXT NOT NULL,
             server TEXT NOT NULL,
             nickname TEXT NOT NULL,
-            real_nickname TEXT DEFAULT 'None',  -- Новый столбец
+            real_nickname TEXT NOT NULL DEFAULT 'None',
             license_active BOOLEAN NOT NULL,
             last_active TIMESTAMP NOT NULL,
-            allowed BOOLEAN DEFAULT FALSE
+            allowed BOOLEAN DEFAULT FALSE,
+            CONSTRAINT unique_ip UNIQUE (ip)  -- Добавляем уникальное ограничение для ip
         );
     """)
     conn.commit()
@@ -90,14 +91,13 @@ HTML_TEMPLATE = """
         <thead>
             <tr>
                 <th>Nickname</th>
-                <th>Real Nickname</th>  <!-- Новый столбец -->
                 <th>Server</th>
                 <th>Status</th>
                 <th>License Status</th>
             </tr>
         </thead>
         <tbody id="data-table-body">
-            <tr><td colspan="5">Loading data...</td></tr>
+            <tr><td colspan="4">Loading data...</td></tr>
         </tbody>
     </table>
     <script>
@@ -113,7 +113,6 @@ HTML_TEMPLATE = """
                         const licenseClass = item.license_active ? 'license-active' : 'license-inactive';
                         row.innerHTML = 
                             `<td>${item.nickname}</td>
-                            <td>${item.real_nickname}</td>
                             <td>${item.server}</td>
                             <td><span class="status ${statusClass}"></span></td>
                             <td class="${licenseClass}">${item.license_active ? 'Active' : 'Inactive'}</td>`;
@@ -186,24 +185,22 @@ def receive_data():
         print("Error occurred while receiving data:", e)
         return jsonify({"error": "Internal server error"}), 500
 
-
 @app.route('/data', methods=['GET'])
 def get_data():
     current_time = datetime.now(timezone.utc)
 
     try:
-        cur.execute("SELECT nickname, real_nickname, server, license_active, last_active FROM user_data;")
+        cur.execute("SELECT nickname, server, license_active, last_active FROM user_data;")
         rows = cur.fetchall()
 
         response = []
-        for nickname, real_nickname, server, license_active, last_active in rows:
+        for nickname, server, license_active, last_active in rows:
             # Приведение last_active к timezone-aware
             if last_active.tzinfo is None:
                 last_active = last_active.replace(tzinfo=timezone.utc)
             active = (current_time - last_active) < ACTIVE_DURATION
             response.append({
                 "nickname": nickname,
-                "real_nickname": real_nickname,  # Добавление real_nickname в ответ
                 "server": server,
                 "active": active,
                 "license_active": license_active
