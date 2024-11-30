@@ -16,17 +16,18 @@ ACTIVE_DURATION = timedelta(seconds=30)
 # Создание таблицы, если не существует
 def create_table():
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_data (
-            deviceid TEXT PRIMARY KEY,
-            ip TEXT NOT NULL,
-            server TEXT NOT NULL,
-            nickname TEXT NOT NULL,
-            real_nickname TEXT NOT NULL DEFAULT 'None',
-            license_active BOOLEAN NOT NULL,
-            last_active TIMESTAMP NOT NULL,
-            allowed BOOLEAN DEFAULT FALSE,
-            CONSTRAINT unique_ip UNIQUE (ip)  -- Добавляем уникальное ограничение для ip
-        );
+CREATE TABLE IF NOT EXISTS user_data (
+    deviceid TEXT PRIMARY KEY,
+    ip TEXT NOT NULL,
+    server TEXT NOT NULL,
+    nickname TEXT NOT NULL,
+    real_nickname TEXT NOT NULL DEFAULT 'None',
+    license_active BOOLEAN NOT NULL,
+    last_active TIMESTAMP NOT NULL,
+    allowed BOOLEAN DEFAULT FALSE,
+    CONSTRAINT unique_ip UNIQUE (ip)
+);
+
     """)
     conn.commit()
 
