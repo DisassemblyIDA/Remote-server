@@ -22,109 +22,15 @@ def create_table():
             server TEXT NOT NULL,
             nickname TEXT NOT NULL,
             license_active BOOLEAN NOT NULL,
-            last_active TIMESTAMP NOT NULL
+            last_active TIMESTAMP NOT NULL,
+            allowed BOOLEAN DEFAULT FALSE
         );
     """)
     conn.commit()
 
 create_table()
 
-# Шаблон HTML
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>License Status</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f9f9f9;
-            color: #333;
-            padding: 20px;
-        }
-        h1 {
-            text-align: center;
-            color: #007BFF;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border: 1px solid #ddd;
-        }
-        th {
-            background-color: #007BFF;
-            color: white;
-        }
-        .status {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-        }
-        .active {
-            background-color: green;
-        }
-        .inactive {
-            background-color: red;
-        }
-        .license-active {
-            color: green;
-        }
-        .license-inactive {
-            color: red;
-        }
-    </style>
-</head>
-<body>
-    <h1>License and User Status</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>Nickname</th>
-                <th>Server</th>
-                <th>Status</th>
-                <th>License Status</th>
-            </tr>
-        </thead>
-        <tbody id="data-table-body">
-            <tr><td colspan="4">Loading data...</td></tr>
-        </tbody>
-    </table>
-    <script>
-        function fetchData() {
-            fetch('/data')
-                .then(response => response.json())
-                .then(data => {
-                    const tableBody = document.getElementById('data-table-body');
-                    tableBody.innerHTML = '';
-                    data.forEach(item => {
-                        const row = document.createElement('tr');
-                        const statusClass = item.active ? 'active' : 'inactive';
-                        const licenseClass = item.license_active ? 'license-active' : 'license-inactive';
-                        row.innerHTML = `
-                            <td>${item.nickname}</td>
-                            <td>${item.server}</td>
-                            <td><span class="status ${statusClass}"></span></td>
-                            <td class="${licenseClass}">${item.license_active ? 'Active' : 'Inactive'}</td>
-                        `;
-                        tableBody.appendChild(row);
-                    });
-                })
-                .catch(err => console.error('Error fetching data:', err));
-        }
-        setInterval(fetchData, 5000);
-        fetchData();
-    </script>
-</body>
-</html>
-"""
+# Шаблон HTML (тот же)
 
 @app.route('/', methods=['GET'])
 def home():
@@ -148,22 +54,22 @@ def receive_data():
         if deviceid == "-":
             # Проверка, если уже существует запись с таким ip
             cur.execute("""
-                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (ip) WHERE deviceid = '-' DO NOTHING;
-            """, (deviceid, ip, server, nickname, license_active, last_active))
+            """, (deviceid, ip, server, nickname, license_active, last_active, False))
         else:
             # Для других случаев — обычная вставка с обновлением в случае конфликта
             cur.execute("""
-                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (deviceid) DO UPDATE SET
                 ip = EXCLUDED.ip,
                 server = EXCLUDED.server,
                 nickname = EXCLUDED.nickname,
                 license_active = EXCLUDED.license_active,
                 last_active = EXCLUDED.last_active;
-            """, (deviceid, ip, server, nickname, license_active, last_active))
+            """, (deviceid, ip, server, nickname, license_active, last_active, False))
 
         conn.commit()
         return jsonify({"status": "success"}), 201
@@ -173,7 +79,6 @@ def receive_data():
         conn.rollback()  # Откатить транзакцию в случае ошибки
         print("Error occurred while receiving data:", e)
         return jsonify({"error": "Internal server error"}), 500
-
 
 @app.route('/data', methods=['GET'])
 def get_data():
@@ -207,9 +112,9 @@ def get_data():
 @app.route('/check_ip/<deviceid>', methods=['GET'])
 def check_ip(deviceid):
     # Проверка существования deviceid в базе данных и его значения
-    cur.execute("SELECT deviceid FROM user_data WHERE deviceid = %s;", (deviceid,))
+    cur.execute("SELECT allowed FROM user_data WHERE deviceid = %s;", (deviceid,))
     result = cur.fetchone()
-    if result and result[0] != "-":
+    if result and result[0]:  # Если allowed == True
         return "1"
     return "0"
 
