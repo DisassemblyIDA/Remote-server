@@ -123,32 +123,37 @@ def home():
         })
     return render_template_string(HTML_TEMPLATE, users=users)
 
-@app.route('/data', methods=['POST'])
-def receive_data():
+@app.route('/data', methods=['GET'])
+def get_data():
     try:
-        data = request.data.decode('utf-8').split()
-        if len(data) != 5:
-            return jsonify({"error": "Invalid data format"}), 400
+        cur.execute("SELECT server, nickname, license_active, last_active FROM user_data;")
+        users = cur.fetchall()
+        
+        current_time = datetime.now(timezone.utc)
+        active_duration = timedelta(seconds=30)
+        response_data = []
+        
+        for server, nickname, license_active, last_active in users:
+            if isinstance(last_active, datetime):
+                if last_active.tzinfo is None:
+                    last_active = last_active.replace(tzinfo=timezone.utc)
+                status = (current_time - last_active) < active_duration
+            else:
+                status = False
 
-        ip, server, nickname, deviceid, license_status = data
-        license_active = license_status.lower() == "activated"
-        last_active = datetime.now()
+            license_status = "active" if license_active else "inactive"
+            response_data.append({
+                "server": server,
+                "nickname": nickname,
+                "status": status,
+                "license": license_status,
+            })
 
-        cur.execute("""
-            INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ON CONFLICT (deviceid) DO UPDATE SET
-            ip = EXCLUDED.ip,
-            server = EXCLUDED.server,
-            nickname = EXCLUDED.nickname,
-            license_active = EXCLUDED.license_active,
-            last_active = EXCLUDED.last_active;
-        """, (deviceid, ip, server, nickname, license_active, last_active))
-        conn.commit()
+        return jsonify(response_data)
 
-        return jsonify({"status": "success"}), 201
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except DatabaseError as e:
+        conn.rollback()  # Сбросить транзакцию в случае ошибки
+        return jsonify({"error": "Database error occurred", "details": str(e)}), 500
 
 @app.route('/check_device/<deviceid>', methods=['GET'])
 def check_device(deviceid):
