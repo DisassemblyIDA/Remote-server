@@ -168,23 +168,31 @@ def receive_data():
 @app.route('/data', methods=['GET'])
 def get_data():
     current_time = datetime.now(timezone.utc)
-    cur.execute("SELECT nickname, server, license_active, last_active FROM user_data;")
-    rows = cur.fetchall()
 
-    response = []
-    for nickname, server, license_active, last_active in rows:
-        # Приведение last_active к timezone-aware
-        if last_active.tzinfo is None:
-            last_active = last_active.replace(tzinfo=timezone.utc)
-        active = (current_time - last_active) < ACTIVE_DURATION
-        response.append({
-            "nickname": nickname,
-            "server": server,
-            "active": active,
-            "license_active": license_active
-        })
+    try:
+        cur.execute("SELECT nickname, server, license_active, last_active FROM user_data;")
+        rows = cur.fetchall()
 
-    return jsonify(response)
+        response = []
+        for nickname, server, license_active, last_active in rows:
+            # Приведение last_active к timezone-aware
+            if last_active.tzinfo is None:
+                last_active = last_active.replace(tzinfo=timezone.utc)
+            active = (current_time - last_active) < ACTIVE_DURATION
+            response.append({
+                "nickname": nickname,
+                "server": server,
+                "active": active,
+                "license_active": license_active
+            })
+
+        return jsonify(response)
+    
+    except psycopg2.Error as e:
+        # Обработка ошибки в транзакции
+        conn.rollback()  # Откатить транзакцию в случае ошибки
+        print("Error occurred while fetching data:", e)
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/check_ip/<deviceid>', methods=['GET'])
 def check_ip(deviceid):
