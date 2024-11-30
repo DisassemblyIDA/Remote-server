@@ -115,12 +115,12 @@ HTML_TEMPLATE = """
                         const statusClass = item.active ? 'active' : 'inactive';
                         const licenseClass = item.license_active ? 'license-active' : 'license-inactive';
 
-                        // Форматируем дату последней активности
+                        // Форматируем дату последней активности, если она неактивна
                         const lastActiveDate = new Date(item.last_active);
                         const formattedDate = lastActiveDate.toLocaleString();  // Форматируем дату для отображения
 
                         // Формируем строку для статуса
-                        const statusText = `${item.active ? 'Active' : 'Inactive'} | Last active: ${formattedDate}`;
+                        let statusText = item.active ? 'Active' : `Inactive | Last active: ${formattedDate}`;
 
                         row.innerHTML = 
                             `<td>${item.nickname}</td>
