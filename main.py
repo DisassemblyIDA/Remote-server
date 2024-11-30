@@ -145,6 +145,7 @@ def home():
     return HTML_TEMPLATE
 
 @app.route('/data', methods=['POST'])
+@app.route('/data', methods=['POST'])
 def receive_data():
     data = request.get_json()
     deviceid = data.get("deviceid")
@@ -155,17 +156,14 @@ def receive_data():
     last_active = datetime.now(timezone.utc)
 
     if not ip:
-        return jsonify({"error": "ip is required"}), 400
+        return jsonify({"error": "IP is required"}), 400
 
     try:
-        # Логика обновления/вставки для временного deviceid
         if deviceid == "-":
-            # Проверяем, существует ли запись с таким IP
-            cur.execute("SELECT deviceid FROM user_data WHERE ip = %s;", (ip,))
-            result = cur.fetchone()
-
-            if result:
-                # Обновляем запись с таким IP
+            # Логика для временных deviceid
+            cur.execute("SELECT 1 FROM user_data WHERE ip = %s;", (ip,))
+            if cur.fetchone():
+                # Обновляем существующую запись по IP
                 cur.execute("""
                     UPDATE user_data
                     SET server = %s,
@@ -175,13 +173,13 @@ def receive_data():
                     WHERE ip = %s;
                 """, (server, nickname, license_active, last_active, ip))
             else:
-                # Вставляем новую запись
+                # Создаем новую запись
                 cur.execute("""
                     INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
                     VALUES (%s, %s, %s, %s, %s, %s, %s);
                 """, (deviceid, ip, server, nickname, license_active, last_active, False))
         else:
-            # Логика обновления/вставки для уникального deviceid
+            # Логика для уникальных deviceid
             cur.execute("""
                 INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -204,6 +202,7 @@ def receive_data():
         conn.rollback()
         print("Error occurred while receiving data:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 
 
