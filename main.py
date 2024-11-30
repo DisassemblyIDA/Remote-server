@@ -194,6 +194,7 @@ def receive_data():
         return jsonify({"error": "Internal server error"}), 500
 
 
+
 @app.route('/data', methods=['GET'])
 def get_data():
     current_time = datetime.now(timezone.utc)
