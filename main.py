@@ -30,7 +30,102 @@ def create_table():
 
 create_table()
 
-# Шаблон HTML (тот же)
+# Шаблон HTML
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License Status</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            color: #333;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #007BFF;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #007BFF;
+            color: white;
+        }
+        .status {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .active {
+            background-color: green;
+        }
+        .inactive {
+            background-color: red;
+        }
+        .license-active {
+            color: green;
+        }
+        .license-inactive {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>License and User Status</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Nickname</th>
+                <th>Server</th>
+                <th>Status</th>
+                <th>License Status</th>
+            </tr>
+        </thead>
+        <tbody id="data-table-body">
+            <tr><td colspan="4">Loading data...</td></tr>
+        </tbody>
+    </table>
+    <script>
+        function fetchData() {
+            fetch('/data')
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.getElementById('data-table-body');
+                    tableBody.innerHTML = '';
+                    data.forEach(item => {
+                        const row = document.createElement('tr');
+                        const statusClass = item.active ? 'active' : 'inactive';
+                        const licenseClass = item.license_active ? 'license-active' : 'license-inactive';
+                        row.innerHTML = `
+                            <td>${item.nickname}</td>
+                            <td>${item.server}</td>
+                            <td><span class="status ${statusClass}"></span></td>
+                            <td class="${licenseClass}">${item.license_active ? 'Active' : 'Inactive'}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                })
+                .catch(err => console.error('Error fetching data:', err));
+        }
+        setInterval(fetchData, 5000);
+        fetchData();
+    </script>
+</body>
+</html>
+"""
 
 @app.route('/', methods=['GET'])
 def home():
