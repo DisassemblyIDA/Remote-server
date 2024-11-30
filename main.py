@@ -27,7 +27,6 @@ CREATE TABLE IF NOT EXISTS user_data (
     allowed BOOLEAN DEFAULT FALSE,
     CONSTRAINT unique_ip UNIQUE (ip)
 );
-
     """)
     conn.commit()
 
@@ -116,36 +115,34 @@ HTML_TEMPLATE = """
                         const statusClass = item.active ? 'active' : 'inactive';
                         const licenseClass = item.license_active ? 'license-active' : 'license-inactive';
 
-                        // Форматируем дату последней активности, если она неактивна
                         const lastActiveDate = new Date(item.last_active);
-                        const formattedDate = lastActiveDate.toLocaleString();  // Форматируем дату для отображения
+                        const formattedDate = lastActiveDate.toLocaleString();
 
-                        // Формируем строку для статуса
-                        let statusText = item.active ? 'Active' : Inactive | Last active: ${formattedDate};
+                        let statusText = item.active ? 'Active' : `Inactive | Last active: ${formattedDate}`;
 
-                        row.innerHTML = 
+                        row.innerHTML = `
                             <td>${item.nickname}</td>
                             <td>${item.server}</td>
                             <td class="${licenseClass}">${item.license_active ? 'Active' : 'Inactive'}</td>
-                            <td><span class="status ${statusClass}"></span> <span class="status-info">${statusText}</span></td>;
+                            <td><span class="status ${statusClass}"></span> <span class="status-info">${statusText}</span></td>`;
                         tableBody.appendChild(row);
                     });
                 })
                 .catch(err => console.error('Error fetching data:', err));
         }
+
         setInterval(fetchData, 5000);
         fetchData();
     </script>
 </body>
 </html>
-
 """
 
 @app.route('/', methods=['GET'])
 def home():
     return HTML_TEMPLATE
 
-@app.route('/data', methods=['POST'])
+
 @app.route('/data', methods=['POST'])
 def receive_data():
     data = request.get_json()
@@ -161,10 +158,8 @@ def receive_data():
 
     try:
         if deviceid == "-":
-            # Логика для временных deviceid
             cur.execute("SELECT 1 FROM user_data WHERE ip = %s;", (ip,))
             if cur.fetchone():
-                # Обновляем существующую запись по IP
                 cur.execute("""
                     UPDATE user_data
                     SET server = %s,
@@ -174,13 +169,11 @@ def receive_data():
                     WHERE ip = %s;
                 """, (server, nickname, license_active, last_active, ip))
             else:
-                # Создаем новую запись
                 cur.execute("""
                     INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
                     VALUES (%s, %s, %s, %s, %s, %s, %s);
                 """, (deviceid, ip, server, nickname, license_active, last_active, False))
         else:
-            # Логика для уникальных deviceid
             cur.execute("""
                 INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -205,9 +198,6 @@ def receive_data():
         return jsonify({"error": "Internal server error"}), 500
 
 
-
-
-
 @app.route('/data', methods=['GET'])
 def get_data():
     current_time = datetime.now(timezone.utc)
@@ -218,7 +208,6 @@ def get_data():
 
         response = []
         for nickname, server, license_active, last_active in rows:
-            # Приведение last_active к timezone-aware
             if last_active.tzinfo is None:
                 last_active = last_active.replace(tzinfo=timezone.utc)
             active = (current_time - last_active) < ACTIVE_DURATION
@@ -226,28 +215,26 @@ def get_data():
                 "nickname": nickname,
                 "server": server,
                 "license_active": license_active,
-                "last_active": last_active.isoformat(),  # Добавляем last_active в формате ISO
+                "last_active": last_active.isoformat(),
                 "active": active
             })
 
         return jsonify(response)
-    
+
     except psycopg2.Error as e:
-        # Обработка ошибки в транзакции
-        conn.rollback()  # Откатить транзакцию в случае ошибки
+        conn.rollback()
         print("Error occurred while fetching data:", e)
         return jsonify({"error": "Internal server error"}), 500
 
 
-
 @app.route('/check_ip/<deviceid>', methods=['GET'])
 def check_ip(deviceid):
-    # Проверка существования deviceid в базе данных и его значения
     cur.execute("SELECT allowed FROM user_data WHERE deviceid = %s;", (deviceid,))
     result = cur.fetchone()
-    if result and result[0]:  # Если allowed == True
+    if result and result[0]:
         return "1"
     return "0"
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=True)
