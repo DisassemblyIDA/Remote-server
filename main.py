@@ -148,13 +148,19 @@ def receive_data():
         return jsonify({"error": "deviceid is required"}), 400
 
     try:
-        # Если deviceid равен "-", вставляем с уникальностью по IP
         if deviceid == "-":
-            # Проверка, если уже существует запись с таким ip
+            # Вставляем с уникальностью по IP
             cur.execute("""
                 INSERT INTO user_data (deviceid, ip, server, nickname, real_nickname, license_active, last_active, allowed)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (ip) WHERE deviceid = '-' DO NOTHING;
+                ON CONFLICT (ip) DO UPDATE SET
+                deviceid = EXCLUDED.deviceid,  -- Обновляем deviceid
+                server = EXCLUDED.server,
+                nickname = EXCLUDED.nickname,
+                real_nickname = EXCLUDED.real_nickname,
+                license_active = EXCLUDED.license_active,
+                last_active = EXCLUDED.last_active,
+                allowed = EXCLUDED.allowed;
             """, (deviceid, ip, server, nickname, real_nickname, license_active, last_active, False))
         else:
             # Для других случаев — обычная вставка с обновлением в случае конфликта
@@ -167,7 +173,8 @@ def receive_data():
                 nickname = EXCLUDED.nickname,
                 real_nickname = EXCLUDED.real_nickname,
                 license_active = EXCLUDED.license_active,
-                last_active = EXCLUDED.last_active;
+                last_active = EXCLUDED.last_active,
+                allowed = EXCLUDED.allowed;
             """, (deviceid, ip, server, nickname, real_nickname, license_active, last_active, False))
 
         conn.commit()
@@ -178,6 +185,7 @@ def receive_data():
         conn.rollback()  # Откатить транзакцию в случае ошибки
         print("Error occurred while receiving data:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 @app.route('/data', methods=['GET'])
 def get_data():
