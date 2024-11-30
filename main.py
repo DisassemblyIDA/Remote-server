@@ -50,11 +50,23 @@ HTML_TEMPLATE = """
         tr:hover {
             background-color: #f1f1f1;
         }
-        .active {
-            color: #28a745;
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
         }
-        .inactive {
-            color: #dc3545;
+        .status-active {
+            background-color: #28a745; /* Green */
+        }
+        .status-inactive {
+            background-color: #dc3545; /* Red */
+        }
+        .license-active {
+            color: #28a745; /* Green */
+        }
+        .license-inactive {
+            color: #dc3545; /* Red */
         }
     </style>
     <script>
@@ -66,15 +78,14 @@ HTML_TEMPLATE = """
                     const tableBody = document.getElementById('data-table-body');
                     tableBody.innerHTML = ''; // Clear existing rows
                     if (data.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="4">No data available.</td></tr>';
+                        tableBody.innerHTML = '<tr><td colspan="3">No data available.</td></tr>';
                     } else {
                         data.forEach(item => {
-                            const row = document.createElement('tr');
-                            const statusClass = item[3] ? 'active' : 'inactive';
+                            const licenseClass = item[2] === "Active" ? 'license-active' : 'license-inactive';
+                            const statusClass = item[3] ? 'status-active' : 'status-inactive';
                             row.innerHTML = `
-                                <td>${item[0]}</td>
-                                <td>${item[1]}</td>
-                                <td class="${statusClass}">${item[2]}</td>
+                                <td>${item[0]} <span class="status-dot ${statusClass}"></span></td>
+                                <td class="${licenseClass}">${item[2]}</td>
                             `;
                             tableBody.appendChild(row);
                         });
@@ -93,13 +104,12 @@ HTML_TEMPLATE = """
         <table>
             <thead>
                 <tr>
-                    <th>Device ID</th>
                     <th>Nickname</th>
                     <th>License Status</th>
                 </tr>
             </thead>
             <tbody id="data-table-body">
-                <tr><td colspan="4">No data available.</td></tr>
+                <tr><td colspan="3">No data available.</td></tr>
             </tbody>
         </table>
     </div>
@@ -130,7 +140,7 @@ def receive_data():
     data = request.get_data(as_text=True)
     print(f"Received data: {data}")  # Логирование полученных данных
     if data:
-        ip, server, nickname, deviceid, status = data.split(" ", 4)
+        ip, server, nickname, deviceid, license_status = data.split(" ", 4)
         last_active = datetime.now()
 
         # Сохранение данных в БД
@@ -141,7 +151,7 @@ def receive_data():
             nickname = EXCLUDED.nickname,
             activated = EXCLUDED.activated,
             last_active = EXCLUDED.last_active;
-        """, (deviceid, nickname, status == 'activated', last_active))
+        """, (deviceid, nickname, license_status == 'active', last_active))
         conn.commit()
     
     return jsonify({"status": "success", "data": data}), 201
@@ -162,8 +172,8 @@ def get_data():
         else:
             status = False
 
-        license_status = "Activated" if activated else "Deactivated"
-        response_data.append([deviceid, nickname, license_status, status])
+        license_status = "Active" if activated else "Inactive"
+        response_data.append([nickname, license_status, status])
     
     return jsonify(response_data)
 
