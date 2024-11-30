@@ -158,9 +158,8 @@ def receive_data():
         return jsonify({"error": "deviceid is required"}), 400
 
     try:
-        # Если deviceid равен "-", вставляем с уникальностью по IP, но обновляем если IP уже существует
+        # Если deviceid равен "-", обновляем или добавляем запись по IP
         if deviceid == "-":
-            # Проверка, если уже существует запись с таким ip, то обновляем данные
             cur.execute("""
                 INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
