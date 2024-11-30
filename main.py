@@ -144,11 +144,13 @@ def receive_data():
         return jsonify({"error": "deviceid is required"}), 400
 
     try:
-        # Если deviceid равен "-", вставляем как не уникальное значение
+        # Если deviceid равен "-", вставляем с уникальностью по IP
         if deviceid == "-":
+            # Проверка, если уже существует запись с таким ip
             cur.execute("""
                 INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active)
-                VALUES (%s, %s, %s, %s, %s, %s);
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (ip) WHERE deviceid = '-' DO NOTHING;
             """, (deviceid, ip, server, nickname, license_active, last_active))
         else:
             # Для других случаев — обычная вставка с обновлением в случае конфликта
