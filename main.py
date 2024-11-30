@@ -94,10 +94,11 @@ HTML_TEMPLATE = """
                 <th>Server</th>
                 <th>Status</th>
                 <th>License Status</th>
+                <th>Last Activity</th> <!-- Новый столбец для последней активности -->
             </tr>
         </thead>
         <tbody id="data-table-body">
-            <tr><td colspan="4">Loading data...</td></tr>
+            <tr><td colspan="5">Loading data...</td></tr>
         </tbody>
     </table>
     <script>
@@ -111,11 +112,17 @@ HTML_TEMPLATE = """
                         const row = document.createElement('tr');
                         const statusClass = item.active ? 'active' : 'inactive';
                         const licenseClass = item.license_active ? 'license-active' : 'license-inactive';
+                        
+                        // Форматируем дату последней активности
+                        const lastActiveDate = new Date(item.last_active);
+                        const formattedDate = lastActiveDate.toLocaleString();  // Форматируем дату для отображения
+
                         row.innerHTML = 
                             `<td>${item.nickname}</td>
                             <td>${item.server}</td>
                             <td><span class="status ${statusClass}"></span></td>
-                            <td class="${licenseClass}">${item.license_active ? 'Active' : 'Inactive'}</td>`;
+                            <td class="${licenseClass}">${item.license_active ? 'Active' : 'Inactive'}</td>
+                            <td>${formattedDate}</td>`; <!-- Отображаем дату последней активности -->
                         tableBody.appendChild(row);
                     });
                 })
@@ -203,7 +210,8 @@ def get_data():
                 "nickname": nickname,
                 "server": server,
                 "active": active,
-                "license_active": license_active
+                "license_active": license_active,
+                "last_active": last_active.isoformat()  # Добавляем last_active в формате ISO
             })
 
         return jsonify(response)
@@ -213,6 +221,7 @@ def get_data():
         conn.rollback()  # Откатить транзакцию в случае ошибки
         print("Error occurred while fetching data:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 @app.route('/check_ip/<deviceid>', methods=['GET'])
 def check_ip(deviceid):
