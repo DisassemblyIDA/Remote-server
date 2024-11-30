@@ -159,19 +159,18 @@ def receive_data():
 
     try:
         if deviceid == "-":
-            # Если deviceid временный, обновляем или добавляем запись по IP
+            # Обновляем или добавляем запись по IP
             cur.execute("""
                 INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (ip) DO UPDATE
-                SET deviceid = EXCLUDED.deviceid,
-                    server = EXCLUDED.server,
+                SET server = EXCLUDED.server,
                     nickname = EXCLUDED.nickname,
                     license_active = EXCLUDED.license_active,
                     last_active = EXCLUDED.last_active;
             """, (deviceid, ip, server, nickname, license_active, last_active, False))
         else:
-            # Если deviceid уникальный, обновляем или добавляем запись по deviceid
+            # Обновляем или добавляем запись по deviceid
             cur.execute("""
                 INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -186,6 +185,10 @@ def receive_data():
         conn.commit()
         return jsonify({"status": "success"}), 201
 
+    except psycopg2.IntegrityError as e:
+        conn.rollback()
+        print("Integrity Error occurred:", e)
+        return jsonify({"error": "Integrity constraint violation"}), 400
     except psycopg2.Error as e:
         conn.rollback()
         print("Error occurred while receiving data:", e)
