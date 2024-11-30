@@ -158,19 +158,30 @@ def receive_data():
         return jsonify({"error": "ip is required"}), 400
 
     try:
+        # Логика обновления/вставки для временного deviceid
         if deviceid == "-":
-            # Обновляем или добавляем запись по IP
-            cur.execute("""
-                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (ip) DO UPDATE
-                SET server = EXCLUDED.server,
-                    nickname = EXCLUDED.nickname,
-                    license_active = EXCLUDED.license_active,
-                    last_active = EXCLUDED.last_active;
-            """, (deviceid, ip, server, nickname, license_active, last_active, False))
+            # Проверяем, существует ли запись с таким IP
+            cur.execute("SELECT deviceid FROM user_data WHERE ip = %s;", (ip,))
+            result = cur.fetchone()
+
+            if result:
+                # Обновляем запись с таким IP
+                cur.execute("""
+                    UPDATE user_data
+                    SET server = %s,
+                        nickname = %s,
+                        license_active = %s,
+                        last_active = %s
+                    WHERE ip = %s;
+                """, (server, nickname, license_active, last_active, ip))
+            else:
+                # Вставляем новую запись
+                cur.execute("""
+                    INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s);
+                """, (deviceid, ip, server, nickname, license_active, last_active, False))
         else:
-            # Обновляем или добавляем запись по deviceid
+            # Логика обновления/вставки для уникального deviceid
             cur.execute("""
                 INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
