@@ -165,6 +165,9 @@ def get_data():
 
     response = []
     for nickname, server, license_active, last_active in rows:
+        # Приведение last_active к timezone-aware
+        if last_active.tzinfo is None:
+            last_active = last_active.replace(tzinfo=timezone.utc)
         active = (current_time - last_active) < ACTIVE_DURATION
         response.append({
             "nickname": nickname,
