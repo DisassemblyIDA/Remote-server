@@ -83,6 +83,9 @@ HTML_TEMPLATE = """
         .license-inactive {
             color: red;
         }
+        .status-info {
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -92,13 +95,12 @@ HTML_TEMPLATE = """
             <tr>
                 <th>Nickname</th>
                 <th>Server</th>
-                <th>Status</th>
                 <th>License Status</th>
-                <th>Last Activity</th> <!-- Новый столбец для последней активности -->
+                <th>Status</th>
             </tr>
         </thead>
         <tbody id="data-table-body">
-            <tr><td colspan="5">Loading data...</td></tr>
+            <tr><td colspan="4">Loading data...</td></tr>
         </tbody>
     </table>
     <script>
@@ -112,17 +114,19 @@ HTML_TEMPLATE = """
                         const row = document.createElement('tr');
                         const statusClass = item.active ? 'active' : 'inactive';
                         const licenseClass = item.license_active ? 'license-active' : 'license-inactive';
-                        
+
                         // Форматируем дату последней активности
                         const lastActiveDate = new Date(item.last_active);
                         const formattedDate = lastActiveDate.toLocaleString();  // Форматируем дату для отображения
 
+                        // Формируем строку для статуса
+                        const statusText = `${item.active ? 'Active' : 'Inactive'} | Last active: ${formattedDate}`;
+
                         row.innerHTML = 
                             `<td>${item.nickname}</td>
                             <td>${item.server}</td>
-                            <td><span class="status ${statusClass}"></span></td>
                             <td class="${licenseClass}">${item.license_active ? 'Active' : 'Inactive'}</td>
-                            <td>${formattedDate}</td>`; <!-- Отображаем дату последней активности -->
+                            <td><span class="status ${statusClass}"></span> <span class="status-info">${statusText}</span></td>`;
                         tableBody.appendChild(row);
                     });
                 })
@@ -209,9 +213,9 @@ def get_data():
             response.append({
                 "nickname": nickname,
                 "server": server,
-                "active": active,
                 "license_active": license_active,
-                "last_active": last_active.isoformat()  # Добавляем last_active в формате ISO
+                "last_active": last_active.isoformat(),  # Добавляем last_active в формате ISO
+                "active": active
             })
 
         return jsonify(response)
@@ -221,6 +225,7 @@ def get_data():
         conn.rollback()  # Откатить транзакцию в случае ошибки
         print("Error occurred while fetching data:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 
 @app.route('/check_ip/<deviceid>', methods=['GET'])
