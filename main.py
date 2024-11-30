@@ -143,27 +143,35 @@ def receive_data():
     if not deviceid:
         return jsonify({"error": "deviceid is required"}), 400
 
-    # Если deviceid равен "-", то это не уникальное значение
-    if deviceid == "-":
-        cur.execute("""
-            INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active)
-            VALUES (%s, %s, %s, %s, %s, %s);
-        """, (deviceid, ip, server, nickname, license_active, last_active))
-    else:
-        cur.execute("""
-            INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ON CONFLICT (deviceid) DO UPDATE SET
-            ip = EXCLUDED.ip,
-            server = EXCLUDED.server,
-            nickname = EXCLUDED.nickname,
-            license_active = EXCLUDED.license_active,
-            last_active = EXCLUDED.last_active;
-        """, (deviceid, ip, server, nickname, license_active, last_active))
+    try:
+        # Если deviceid равен "-", вставляем как не уникальное значение
+        if deviceid == "-":
+            cur.execute("""
+                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active)
+                VALUES (%s, %s, %s, %s, %s, %s);
+            """, (deviceid, ip, server, nickname, license_active, last_active))
+        else:
+            # Для других случаев — обычная вставка с обновлением в случае конфликта
+            cur.execute("""
+                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (deviceid) DO UPDATE SET
+                ip = EXCLUDED.ip,
+                server = EXCLUDED.server,
+                nickname = EXCLUDED.nickname,
+                license_active = EXCLUDED.license_active,
+                last_active = EXCLUDED.last_active;
+            """, (deviceid, ip, server, nickname, license_active, last_active))
 
-    conn.commit()
+        conn.commit()
+        return jsonify({"status": "success"}), 201
 
-    return jsonify({"status": "success"}), 201
+    except psycopg2.Error as e:
+        # Обработка ошибки в транзакции
+        conn.rollback()  # Откатить транзакцию в случае ошибки
+        print("Error occurred while receiving data:", e)
+        return jsonify({"error": "Internal server error"}), 500
+
 
 @app.route('/data', methods=['GET'])
 def get_data():
