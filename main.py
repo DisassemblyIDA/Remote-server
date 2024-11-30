@@ -94,13 +94,14 @@ HTML_TEMPLATE = """
         <thead>
             <tr>
                 <th>Nickname</th>
+                <th>Real Nickname</th>  <!-- Новый столбец -->
                 <th>Server</th>
                 <th>License Status</th>
                 <th>Status</th>
             </tr>
         </thead>
         <tbody id="data-table-body">
-            <tr><td colspan="4">Loading data...</td></tr>
+            <tr><td colspan="5">Loading data...</td></tr>
         </tbody>
     </table>
     <script>
@@ -122,6 +123,7 @@ HTML_TEMPLATE = """
 
                         row.innerHTML = `
                             <td>${item.nickname}</td>
+                            <td>${item.real_nickname}</td>  <!-- Отображаем real_nickname -->
                             <td>${item.server}</td>
                             <td class="${licenseClass}">${item.license_active ? 'Active' : 'Inactive'}</td>
                             <td><span class="status ${statusClass}"></span> <span class="status-info">${statusText}</span></td>`;
@@ -136,6 +138,7 @@ HTML_TEMPLATE = """
     </script>
 </body>
 </html>
+
 """
 
 @app.route('/', methods=['GET'])
@@ -203,16 +206,17 @@ def get_data():
     current_time = datetime.now(timezone.utc)
 
     try:
-        cur.execute("SELECT nickname, server, license_active, last_active FROM user_data;")
+        cur.execute("SELECT nickname, real_nickname, server, license_active, last_active FROM user_data;")
         rows = cur.fetchall()
 
         response = []
-        for nickname, server, license_active, last_active in rows:
+        for nickname, real_nickname, server, license_active, last_active in rows:
             if last_active.tzinfo is None:
                 last_active = last_active.replace(tzinfo=timezone.utc)
             active = (current_time - last_active) < ACTIVE_DURATION
             response.append({
                 "nickname": nickname,
+                "real_nickname": real_nickname,  # Добавляем real_nickname
                 "server": server,
                 "license_active": license_active,
                 "last_active": last_active.isoformat(),
@@ -225,6 +229,7 @@ def get_data():
         conn.rollback()
         print("Error occurred while fetching data:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 
 @app.route('/check_ip/<deviceid>', methods=['GET'])
