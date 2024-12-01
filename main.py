@@ -24,12 +24,14 @@ def setup_database():
         real_nickname TEXT DEFAULT 'None',
         license_active BOOLEAN NOT NULL,
         last_active TIMESTAMP NOT NULL,
-        allowed BOOLEAN DEFAULT FALSE
+        allowed BOOLEAN DEFAULT FALSE,
+        unique_identifier TEXT UNIQUE  -- Дополнительный уникальный идентификатор
     );
     """)
     conn.commit()
 
 setup_database()
+
 
 # HTML для отображения данных
 HTML_TEMPLATE = """
