@@ -21,8 +21,8 @@ def setup_database():
         ip TEXT NOT NULL,
         server TEXT NOT NULL,
         nickname TEXT NOT NULL,
-        last_active TIMESTAMP NOT NULL,
-        allowed BOOLEAN DEFAULT FALSE
+        allowed BOOLEAN DEFAULT FALSE,
+        last_active TIMESTAMP NOT NULL
     );
     """)
     conn.commit()
@@ -38,11 +38,12 @@ def receive_data():
     nickname = data.get("nickname", "unknown")
     last_active = datetime.now(timezone.utc)
 
+    # Игнорируем deviceid = '-'
+    if deviceid == "-":
+        return jsonify({"status": "ignored"}), 204
+
     if not ip:
         return jsonify({"error": "IP is required"}), 400
-
-    if deviceid == "-":
-        return jsonify({"status": "ignored"}), 200
 
     try:
         cur.execute("""
@@ -55,7 +56,6 @@ def receive_data():
             nickname = EXCLUDED.nickname,
             last_active = EXCLUDED.last_active;
         """, (deviceid, ip, server, nickname, last_active))
-
         conn.commit()
         return jsonify({"status": "success"}), 201
 
@@ -77,14 +77,12 @@ def get_data():
 
         response = []
         for nickname, server, allowed, last_active in rows:
-            if last_active.tzinfo is None:
-                last_active = last_active.replace(tzinfo=timezone.utc)
             active = (current_time - last_active) < ACTIVE_DURATION
             response.append({
                 "nickname": nickname,
                 "server": server,
                 "license_status": "Active" if allowed else "Inactive",
-                "status": "Now" if active else last_active.isoformat()
+                "status": "Active" if active else f"Inactive | Last active: {last_active.isoformat()}"
             })
 
         return jsonify(response)
