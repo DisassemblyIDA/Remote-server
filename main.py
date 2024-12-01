@@ -130,7 +130,15 @@ HTML_TEMPLATE = """
                 .then(data => {
                     const tableBody = document.getElementById('data-table-body');
                     tableBody.innerHTML = '';
+                    const uniqueUsers = new Map();
+                    
                     data.forEach(item => {
+                        if (!uniqueUsers.has(item.nickname)) {
+                            uniqueUsers.set(item.nickname, item);
+                        }
+                    });
+
+                    uniqueUsers.forEach(item => {
                         const row = document.createElement('tr');
                         const statusClass = item.active ? 'active' : 'inactive';
                         const licenseClass = item.license_active ? 'license-active' : 'license-inactive';
@@ -178,25 +186,21 @@ def receive_data():
 
     try:
         if deviceid == '-':
-            # Проверяем, существует ли запись с таким IP
-            cur.execute("SELECT deviceid, server, nickname, license_active, last_active FROM user_data WHERE ip = %s;", (ip,))
-            existing_user = cur.fetchone()
-
-            if existing_user:
-                # Если пользователь с таким IP уже есть, обновляем только поле deviceid
-                cur.execute("""
-                    UPDATE user_data
-                    SET deviceid = %s, last_active = %s
-                    WHERE ip = %s;
-                """, (deviceid, last_active, ip))
-            else:
-                # Вставляем нового пользователя с deviceid
-                cur.execute("""
-                    INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed, real_nickname, unique_identifier)
-                    VALUES (%s, %s, %s, %s, %s, %s, FALSE, 'None', %s)
-                """, (deviceid, ip, server, nickname, license_active, last_active, ip))
+            cur.execute("""
+                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed, real_nickname, unique_identifier)
+                VALUES (%s, %s, %s, %s, %s, %s, FALSE, 'None', %s)
+                ON CONFLICT (unique_identifier)
+                DO UPDATE SET
+                    ip = EXCLUDED.ip,
+                    server = EXCLUDED.server,
+                    nickname = EXCLUDED.nickname,
+                    license_active = EXCLUDED.license_active,
+                    last_active = EXCLUDED.last_active,
+                    allowed = FALSE,
+                    real_nickname = COALESCE(user_data.real_nickname, 'None'),
+                    deviceid = EXCLUDED.deviceid;
+            """, (deviceid, ip, server, nickname, license_active, last_active, ip))
         else:
-            # Вставка или обновление записи по deviceid
             cur.execute("""
                 INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed, real_nickname, unique_identifier)
                 VALUES (%s, %s, %s, %s, %s, %s, FALSE, 'None', %s)
@@ -224,11 +228,11 @@ def get_data():
     current_time = datetime.now(timezone.utc)
 
     try:
-        cur.execute("SELECT nickname, real_nickname, server, license_active, last_active, unique_identifier FROM user_data;")
+        cur.execute("SELECT nickname, real_nickname, server, license_active, last_active FROM user_data;")
         rows = cur.fetchall()
 
         response = []
-        for nickname, real_nickname, server, license_active, last_active, unique_identifier in rows:
+        for nickname, real_nickname, server, license_active, last_active in rows:
             if last_active.tzinfo is None:
                 last_active = last_active.replace(tzinfo=timezone.utc)
             active = (current_time - last_active) < ACTIVE_DURATION
@@ -252,11 +256,9 @@ def get_data():
 def check_ip(deviceid):
     cur.execute("SELECT allowed FROM user_data WHERE deviceid = %s;", (deviceid,))
     result = cur.fetchone()
-    if result:
-        allowed = result[0]
-        return jsonify({"allowed": allowed})
-    else:
-        return jsonify({"error": "Device not found"}), 404
+    if result and result[0]:
+        return "1"
+    return "0"
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=8080, debug=True)
