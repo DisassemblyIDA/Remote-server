@@ -13,30 +13,43 @@ cur = conn.cursor()
 # Длительность активности в секундах
 ACTIVE_DURATION = timedelta(seconds=30)
 
-# Создание таблицы, если не существует
-def create_table():
+# Создание таблицы, триггера и функции, если не существуют
+def setup_database():
     cur.execute("""
-CREATE TABLE IF NOT EXISTS user_data (
-    deviceid TEXT NOT NULL,
-    ip TEXT NOT NULL,
-    server TEXT NOT NULL,
-    nickname TEXT NOT NULL,
-    real_nickname TEXT NOT NULL DEFAULT 'None',
-    license_active BOOLEAN NOT NULL,
-    last_active TIMESTAMP NOT NULL,
-    allowed BOOLEAN DEFAULT FALSE,
-    unique_identifier TEXT GENERATED ALWAYS AS (
-        CASE
-            WHEN deviceid = '-' THEN ip
-            ELSE deviceid
-        END
-    ) STORED,
-    CONSTRAINT unique_key UNIQUE (unique_identifier)
-);
+    CREATE TABLE IF NOT EXISTS user_data (
+        deviceid TEXT NOT NULL,
+        ip TEXT NOT NULL,
+        server TEXT NOT NULL,
+        nickname TEXT NOT NULL,
+        real_nickname TEXT NOT NULL DEFAULT 'None',
+        license_active BOOLEAN NOT NULL,
+        last_active TIMESTAMP NOT NULL,
+        allowed BOOLEAN DEFAULT FALSE,
+        unique_identifier TEXT,
+        CONSTRAINT unique_key UNIQUE (unique_identifier)
+    );
+    """)
+
+    cur.execute("""
+    CREATE OR REPLACE FUNCTION update_unique_identifier()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.unique_identifier = CASE
+            WHEN NEW.deviceid = '-' THEN NEW.ip
+            ELSE NEW.deviceid
+        END;
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    DROP TRIGGER IF EXISTS update_unique_identifier_trigger ON user_data;
+    CREATE TRIGGER update_unique_identifier_trigger
+    BEFORE INSERT OR UPDATE ON user_data
+    FOR EACH ROW EXECUTE FUNCTION update_unique_identifier();
     """)
     conn.commit()
 
-create_table()
+setup_database()
 
 # Шаблон HTML
 HTML_TEMPLATE = """
@@ -153,10 +166,10 @@ def home():
 @app.route('/data', methods=['POST'])
 def receive_data():
     data = request.get_json()
-    deviceid = data.get("deviceid")
+    deviceid = data.get("deviceid", "-")
     ip = data.get("ip")
-    server = data.get("server")
-    nickname = data.get("nickname")
+    server = data.get("server", "unknown")
+    nickname = data.get("nickname", "unknown")
     license_active = data.get("license_status") == "activated"
     last_active = datetime.now(timezone.utc)
 
@@ -164,28 +177,39 @@ def receive_data():
         return jsonify({"error": "IP is required"}), 400
 
     try:
+        # Проверяем, существует ли строка с таким deviceid или ip
         cur.execute("""
-            INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (unique_identifier) DO UPDATE
-            SET ip = EXCLUDED.ip,
-                server = EXCLUDED.server,
-                nickname = EXCLUDED.nickname,
-                license_active = EXCLUDED.license_active,
-                last_active = EXCLUDED.last_active;
-        """, (deviceid, ip, server, nickname, license_active, last_active, False))
+            SELECT deviceid FROM user_data
+            WHERE unique_identifier = %s OR unique_identifier = %s;
+        """, (deviceid, ip))
+        existing = cur.fetchone()
+
+        if existing:
+            # Обновляем существующую запись
+            cur.execute("""
+                UPDATE user_data
+                SET ip = %s,
+                    server = %s,
+                    nickname = %s,
+                    license_active = %s,
+                    last_active = %s,
+                    deviceid = %s
+                WHERE unique_identifier = %s OR unique_identifier = %s;
+            """, (ip, server, nickname, license_active, last_active, deviceid, deviceid, ip))
+        else:
+            # Вставляем новую запись
+            cur.execute("""
+                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
+                VALUES (%s, %s, %s, %s, %s, %s, %s);
+            """, (deviceid, ip, server, nickname, license_active, last_active, False))
+
         conn.commit()
         return jsonify({"status": "success"}), 201
 
-    except psycopg2.IntegrityError as e:
-        conn.rollback()
-        print("Integrity Error occurred:", e)
-        return jsonify({"error": "Integrity constraint violation"}), 400
     except psycopg2.Error as e:
         conn.rollback()
-        print("Error occurred while receiving data:", e)
+        print("Error occurred while processing data:", e)
         return jsonify({"error": "Internal server error"}), 500
-
 
 @app.route('/data', methods=['GET'])
 def get_data():
