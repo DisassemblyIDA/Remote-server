@@ -161,22 +161,31 @@ def receive_data():
 
     try:
         if deviceid == "-":
-            cur.execute("SELECT 1 FROM user_data WHERE ip = %s;", (ip,))
-            if cur.fetchone():
-                cur.execute("""
-                    UPDATE user_data
-                    SET server = %s,
-                        nickname = %s,
-                        license_active = %s,
-                        last_active = %s
-                    WHERE ip = %s;
-                """, (server, nickname, license_active, last_active, ip))
+            # Обработка временного уникального ключа по IP
+            cur.execute("SELECT deviceid FROM user_data WHERE ip = %s;", (ip,))
+            row = cur.fetchone()
+            if row:
+                existing_deviceid = row[0]
+                if existing_deviceid == "-":
+                    # Обновляем данные по IP
+                    cur.execute("""
+                        UPDATE user_data
+                        SET server = %s,
+                            nickname = %s,
+                            license_active = %s,
+                            last_active = %s
+                        WHERE ip = %s;
+                    """, (server, nickname, license_active, last_active, ip))
+                else:
+                    return jsonify({"error": "IP already linked to another deviceid"}), 400
             else:
+                # Вставляем новые данные с временным deviceid
                 cur.execute("""
                     INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
                     VALUES (%s, %s, %s, %s, %s, %s, %s);
                 """, (deviceid, ip, server, nickname, license_active, last_active, False))
         else:
+            # Обработка основного ключа deviceid
             cur.execute("""
                 INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -199,6 +208,7 @@ def receive_data():
         conn.rollback()
         print("Error occurred while receiving data:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 
 @app.route('/data', methods=['GET'])
