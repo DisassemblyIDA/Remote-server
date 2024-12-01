@@ -60,96 +60,102 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>License and User Status</title>
     <style>
-        /* Общий фон страницы */
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #6a11cb, #2575fc);
-            color: #fff;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
+    /* Общий фон страницы */
+    body {
+        font-family: Arial, sans-serif;
+        background: linear-gradient(135deg, #6a11cb, #2575fc);
+        color: #fff;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+    }
 
-        /* Контейнер таблицы */
-        .container {
-            max-width: 90%;
-            margin: 20px auto;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-        }
+    /* Контейнер таблицы */
+    .container {
+        max-width: 90%;
+        margin: 20px auto;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+    }
 
-        /* Заголовок */
-        h1 {
-            text-align: center;
-            font-size: 2rem;
-            background: linear-gradient(90deg, #6a11cb, #2575fc);
-            padding: 15px;
-            margin: 0;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-        }
+    /* Заголовок */
+    h1 {
+        text-align: center;
+        font-size: 2rem;
+        background: linear-gradient(90deg, #6a11cb, #2575fc);
+        padding: 15px;
+        margin: 0;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        border-top-left-radius: 15px;
+        border-top-right-radius: 15px;
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+    }
 
-        /* Таблица */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 0;
-            text-align: left;
-            overflow: hidden;
-        }
+    /* Таблица */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0;
+        text-align: left;
+    }
 
-        /* Шапка таблицы */
-        thead th {
-            background: linear-gradient(135deg, #6a11cb, #2575fc);
-            color: #fff;
-            font-weight: bold;
-            padding: 15px;
-        }
+    /* Шапка таблицы */
+    thead th {
+        background: linear-gradient(135deg, #6a11cb, #2575fc);
+        color: #fff;
+        font-weight: bold;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    }
 
-        /* Тело таблицы */
-        tbody tr {
-            background: rgba(255, 255, 255, 0.1);
-            transition: background 0.3s ease;
-        }
+    /* Тело таблицы */
+    tbody tr {
+        background: rgba(255, 255, 255, 0.1);
+        transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
 
-        tbody tr:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
+    tbody tr:hover {
+        background: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+    }
 
-        tbody td {
-            padding: 10px 15px;
-            color: #e4e4e4;
-        }
+    tbody td {
+        padding: 10px 15px;
+        color: #e4e4e4;
+    }
 
-        /* Стили для активного и неактивного статуса */
-        .status {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
+    /* Стили для активного и неактивного статуса */
+    .status {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
 
-        .status.active {
-            background-color: #4caf50; /* Зеленый */
-        }
+    .status.active {
+        background-color: #4caf50; /* Зеленый */
+    }
 
-        .status.inactive {
-            background-color: #f44336; /* Красный */
-        }
+    .status.inactive {
+        background-color: #f44336; /* Красный */
+    }
 
-        .license-active {
-            color: #4caf50;
-        }
+    .license-active {
+        color: #4caf50;
+    }
 
-        .license-inactive {
-            color: #f44336;
-        }
-    </style>
+    .license-inactive {
+        color: #f44336;
+    }
+</style>
+
 </head>
 <body>
     <div class="container">
