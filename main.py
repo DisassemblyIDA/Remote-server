@@ -17,7 +17,7 @@ ACTIVE_DURATION = timedelta(seconds=30)
 def create_table():
     cur.execute("""
 CREATE TABLE IF NOT EXISTS user_data (
-    deviceid TEXT PRIMARY KEY,
+    deviceid TEXT NOT NULL,
     ip TEXT NOT NULL,
     server TEXT NOT NULL,
     nickname TEXT NOT NULL,
@@ -25,7 +25,13 @@ CREATE TABLE IF NOT EXISTS user_data (
     license_active BOOLEAN NOT NULL,
     last_active TIMESTAMP NOT NULL,
     allowed BOOLEAN DEFAULT FALSE,
-    CONSTRAINT unique_ip UNIQUE (ip)
+    unique_identifier TEXT GENERATED ALWAYS AS (
+        CASE
+            WHEN deviceid = '-' THEN ip
+            ELSE deviceid
+        END
+    ) STORED,
+    CONSTRAINT unique_key UNIQUE (unique_identifier)
 );
     """)
     conn.commit()
@@ -94,7 +100,7 @@ HTML_TEMPLATE = """
         <thead>
             <tr>
                 <th>Nickname</th>
-                <th>Real Nickname</th>  <!-- Новый столбец -->
+                <th>Real Nickname</th>
                 <th>Server</th>
                 <th>License Status</th>
                 <th>Status</th>
@@ -123,7 +129,7 @@ HTML_TEMPLATE = """
 
                         row.innerHTML = `
                             <td>${item.nickname}</td>
-                            <td>${item.real_nickname}</td>  <!-- Отображаем real_nickname -->
+                            <td>${item.real_nickname}</td>
                             <td>${item.server}</td>
                             <td class="${licenseClass}">${item.license_active ? 'Active' : 'Inactive'}</td>
                             <td><span class="status ${statusClass}"></span> <span class="status-info">${statusText}</span></td>`;
@@ -138,13 +144,11 @@ HTML_TEMPLATE = """
     </script>
 </body>
 </html>
-
 """
 
 @app.route('/', methods=['GET'])
 def home():
     return HTML_TEMPLATE
-
 
 @app.route('/data', methods=['POST'])
 def receive_data():
@@ -160,43 +164,16 @@ def receive_data():
         return jsonify({"error": "IP is required"}), 400
 
     try:
-        if deviceid == "-":
-            # Обработка временного уникального ключа по IP
-            cur.execute("SELECT deviceid FROM user_data WHERE ip = %s;", (ip,))
-            row = cur.fetchone()
-            if row:
-                existing_deviceid = row[0]
-                if existing_deviceid == "-":
-                    # Обновляем данные по IP
-                    cur.execute("""
-                        UPDATE user_data
-                        SET server = %s,
-                            nickname = %s,
-                            license_active = %s,
-                            last_active = %s
-                        WHERE ip = %s;
-                    """, (server, nickname, license_active, last_active, ip))
-                else:
-                    return jsonify({"error": "IP already linked to another deviceid"}), 400
-            else:
-                # Вставляем новые данные с временным deviceid
-                cur.execute("""
-                    INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s);
-                """, (deviceid, ip, server, nickname, license_active, last_active, False))
-        else:
-            # Обработка основного ключа deviceid
-            cur.execute("""
-                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (deviceid) DO UPDATE
-                SET ip = EXCLUDED.ip,
-                    server = EXCLUDED.server,
-                    nickname = EXCLUDED.nickname,
-                    license_active = EXCLUDED.license_active,
-                    last_active = EXCLUDED.last_active;
-            """, (deviceid, ip, server, nickname, license_active, last_active, False))
-
+        cur.execute("""
+            INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (unique_key) DO UPDATE
+            SET ip = EXCLUDED.ip,
+                server = EXCLUDED.server,
+                nickname = EXCLUDED.nickname,
+                license_active = EXCLUDED.license_active,
+                last_active = EXCLUDED.last_active;
+        """, (deviceid, ip, server, nickname, license_active, last_active, False))
         conn.commit()
         return jsonify({"status": "success"}), 201
 
@@ -208,8 +185,6 @@ def receive_data():
         conn.rollback()
         print("Error occurred while receiving data:", e)
         return jsonify({"error": "Internal server error"}), 500
-
-
 
 @app.route('/data', methods=['GET'])
 def get_data():
@@ -226,7 +201,7 @@ def get_data():
             active = (current_time - last_active) < ACTIVE_DURATION
             response.append({
                 "nickname": nickname,
-                "real_nickname": real_nickname,  # Добавляем real_nickname
+                "real_nickname": real_nickname,
                 "server": server,
                 "license_active": license_active,
                 "last_active": last_active.isoformat(),
@@ -240,8 +215,6 @@ def get_data():
         print("Error occurred while fetching data:", e)
         return jsonify({"error": "Internal server error"}), 500
 
-
-
 @app.route('/check_ip/<deviceid>', methods=['GET'])
 def check_ip(deviceid):
     cur.execute("SELECT allowed FROM user_data WHERE deviceid = %s;", (deviceid,))
@@ -249,7 +222,6 @@ def check_ip(deviceid):
     if result and result[0]:
         return "1"
     return "0"
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=True)
