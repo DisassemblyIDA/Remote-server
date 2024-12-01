@@ -177,9 +177,8 @@ def receive_data():
         return jsonify({"error": "IP is required"}), 400
 
     try:
-        # Проверяем, если deviceid == '-', обновляем по ip, если нет, по deviceid
         if deviceid == '-':
-            # Обновляем запись по ip, если deviceid отсутствует
+            # Вставка или обновление записи по IP
             cur.execute("""
                 INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed, real_nickname, unique_identifier)
                 VALUES (%s, %s, %s, %s, %s, %s, FALSE, 'None', %s)
@@ -190,12 +189,12 @@ def receive_data():
                     nickname = EXCLUDED.nickname,
                     license_active = EXCLUDED.license_active,
                     last_active = EXCLUDED.last_active,
-                    allowed = FALSE, 
+                    allowed = FALSE,
                     real_nickname = COALESCE(user_data.real_nickname, 'None'),
                     deviceid = EXCLUDED.deviceid;
-            """, (deviceid, ip, server, nickname, license_active, last_active, ip))  # Обновляем по ip
+            """, (deviceid, ip, server, nickname, license_active, last_active, ip))
         else:
-            # Если deviceid не равно '-', обновляем запись по deviceid
+            # Вставка или обновление записи по deviceid
             cur.execute("""
                 INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed, real_nickname, unique_identifier)
                 VALUES (%s, %s, %s, %s, %s, %s, FALSE, 'None', %s)
@@ -206,9 +205,9 @@ def receive_data():
                     nickname = EXCLUDED.nickname,
                     license_active = EXCLUDED.license_active,
                     last_active = EXCLUDED.last_active,
-                    allowed = FALSE, 
+                    allowed = FALSE,
                     real_nickname = COALESCE(user_data.real_nickname, 'None');
-            """, (deviceid, ip, server, nickname, license_active, last_active, deviceid))  # Обновляем по deviceid
+            """, (deviceid, ip, server, nickname, license_active, last_active, deviceid))
 
         conn.commit()
         return jsonify({"status": "success"}), 201
@@ -217,8 +216,6 @@ def receive_data():
         conn.rollback()
         print("Error occurred while processing data:", e)
         return jsonify({"error": "Internal server error"}), 500
-
-
 
 @app.route('/data', methods=['GET'])
 def get_data():
