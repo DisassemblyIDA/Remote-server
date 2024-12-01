@@ -167,7 +167,7 @@ def receive_data():
         cur.execute("""
             INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (unique_key) DO UPDATE
+            ON CONFLICT (unique_identifier) DO UPDATE
             SET ip = EXCLUDED.ip,
                 server = EXCLUDED.server,
                 nickname = EXCLUDED.nickname,
@@ -185,6 +185,7 @@ def receive_data():
         conn.rollback()
         print("Error occurred while receiving data:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 @app.route('/data', methods=['GET'])
 def get_data():
