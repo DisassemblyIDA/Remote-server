@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import os
 import psycopg2
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 app = Flask(__name__)
 
@@ -60,25 +60,33 @@ def receive_data():
 @app.route('/data', methods=['GET'])
 def get_data():
     try:
+        # Извлекаем Device ID, IP и другую информацию
         cur.execute("SELECT deviceid, ip, nickname, last_active, allowed FROM user_data;")
         rows = cur.fetchall()
+        now = datetime.now(timezone.utc)
+        active_threshold = timedelta(seconds=30)
 
-        response = [
-            {
-                "deviceid": row[0],
-                "ip": row[1],
-                "nickname": row[2],
-                "last_active": row[3].isoformat(),
-                "license_status": "Active" if row[4] else "Inactive"
+        response = []
+        for row in rows:
+            deviceid, ip, nickname, last_active, allowed = row
+            is_active = (now - last_active) <= active_threshold
+            status = {
+                "deviceid": deviceid,  # Добавлено в ответ
+                "ip": ip,  # Добавлено в ответ
+                "nickname": nickname,
+                "last_active": "Now" if is_active else last_active.isoformat(),
+                "active": is_active,
+                "license_status": "Active" if allowed else "Inactive"
             }
-            for row in rows
-        ]
+            response.append(status)
+
         return jsonify(response)
 
     except psycopg2.Error as e:
         conn.rollback()
         print("Error occurred while fetching data:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 @app.route('/', methods=['GET'])
 def home():
@@ -125,6 +133,19 @@ def home():
         tr:nth-child(even) {
             background: rgba(255, 255, 255, 0.1);
         }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .active {
+            background-color: #28a745;
+        }
+        .inactive {
+            background-color: #dc3545;
+        }
         </style>
     </head>
     <body>
@@ -133,15 +154,13 @@ def home():
             <table>
                 <thead>
                     <tr>
-                        <th>Device ID</th>
-                        <th>IP</th>
                         <th>Nickname</th>
                         <th>Last Active</th>
                         <th>License Status</th>
                     </tr>
                 </thead>
                 <tbody id="data-body">
-                    <tr><td colspan="5">Loading...</td></tr>
+                    <tr><td colspan="3">Loading...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -154,11 +173,10 @@ def home():
                         tbody.innerHTML = '';
                         data.forEach(item => {
                             const row = document.createElement('tr');
+                            const statusDot = item.active ? '<span class="status-dot active"></span>' : '<span class="status-dot inactive"></span>';
                             row.innerHTML = `
-                                <td>${item.deviceid}</td>
-                                <td>${item.ip}</td>
                                 <td>${item.nickname}</td>
-                                <td>${new Date(item.last_active).toLocaleString()}</td>
+                                <td>${statusDot}${item.last_active}</td>
                                 <td>${item.license_status}</td>
                             `;
                             tbody.appendChild(row);
