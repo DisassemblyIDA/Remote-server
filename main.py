@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from datetime import datetime, timedelta, timezone
 import psycopg2
 import os
@@ -34,25 +34,134 @@ def setup_database():
     CREATE OR REPLACE FUNCTION update_unique_identifier()
     RETURNS TRIGGER AS $$
     BEGIN
-        -- Устанавливаем unique_identifier только при вставке
-        IF TG_OP = 'INSERT' THEN
-            NEW.unique_identifier = CASE
-                WHEN NEW.deviceid = '-' THEN NEW.ip
-                ELSE NEW.deviceid
-            END;
-        END IF;
+        NEW.unique_identifier = CASE
+            WHEN NEW.deviceid = '-' THEN NEW.ip
+            ELSE NEW.deviceid
+        END;
         RETURN NEW;
     END;
     $$ LANGUAGE plpgsql;
 
     DROP TRIGGER IF EXISTS update_unique_identifier_trigger ON user_data;
     CREATE TRIGGER update_unique_identifier_trigger
-    BEFORE INSERT ON user_data
+    BEFORE INSERT OR UPDATE ON user_data
     FOR EACH ROW EXECUTE FUNCTION update_unique_identifier();
     """)
     conn.commit()
 
 setup_database()
+
+# Шаблон HTML
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License Status</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            color: #333;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #007BFF;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #007BFF;
+            color: white;
+        }
+        .status {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .active {
+            background-color: green;
+        }
+        .inactive {
+            background-color: red;
+        }
+        .license-active {
+            color: green;
+        }
+        .license-inactive {
+            color: red;
+        }
+        .status-info {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>License and User Status</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Nickname</th>
+                <th>Real Nickname</th>
+                <th>Server</th>
+                <th>License Status</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="data-table-body">
+            <tr><td colspan="5">Loading data...</td></tr>
+        </tbody>
+    </table>
+    <script>
+        function fetchData() {
+            fetch('/data')
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.getElementById('data-table-body');
+                    tableBody.innerHTML = '';
+                    data.forEach(item => {
+                        const row = document.createElement('tr');
+                        const statusClass = item.active ? 'active' : 'inactive';
+                        const licenseClass = item.license_active ? 'license-active' : 'license-inactive';
+
+                        const lastActiveDate = new Date(item.last_active);
+                        const formattedDate = lastActiveDate.toLocaleString();
+
+                        let statusText = item.active ? 'Active' : `Inactive | Last active: ${formattedDate}`;
+
+                        row.innerHTML = 
+                            `<td>${item.nickname}</td>
+                            <td>${item.real_nickname}</td>
+                            <td>${item.server}</td>
+                            <td class="${licenseClass}">${item.license_active ? 'Active' : 'Inactive'}</td>
+                            <td><span class="status ${statusClass}"></span> <span class="status-info">${statusText}</span></td>`;
+                        tableBody.appendChild(row);
+                    });
+                })
+                .catch(err => console.error('Error fetching data:', err));
+        }
+
+        setInterval(fetchData, 5000);
+        fetchData();
+    </script>
+</body>
+</html>
+"""
+
+@app.route('/', methods=['GET'])
+def home():
+    return HTML_TEMPLATE
 
 @app.route('/data', methods=['POST'])
 def receive_data():
@@ -84,9 +193,11 @@ def receive_data():
                     nickname = %s,
                     license_active = %s,
                     last_active = %s,
-                    deviceid = %s
+                    deviceid = %s,
+                    real_nickname = %s,
+                    allowed = %s
                 WHERE unique_identifier = %s OR unique_identifier = %s;
-            """, (ip, server, nickname, license_active, last_active, deviceid, deviceid, ip))
+            """, (ip, server, nickname, license_active, last_active, deviceid, data.get("real_nickname", "None"), data.get("allowed", False), deviceid, ip))
         else:
             # Вставляем новую запись
             cur.execute("""
