@@ -167,10 +167,6 @@ HTML_TEMPLATE = """
 </html>
 """
 
-@app.route('/', methods=['GET'])
-def home():
-    return HTML_TEMPLATE
-
 @app.route('/data', methods=['POST'])
 def receive_data():
     data = request.get_json()
@@ -186,34 +182,41 @@ def receive_data():
 
     try:
         if deviceid == '-':
-            cur.execute("""
-                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed, real_nickname, unique_identifier)
-                VALUES (%s, %s, %s, %s, %s, %s, FALSE, 'None', %s)
-                ON CONFLICT (unique_identifier)
-                DO UPDATE SET
-                    ip = EXCLUDED.ip,
-                    server = EXCLUDED.server,
-                    nickname = EXCLUDED.nickname,
-                    license_active = EXCLUDED.license_active,
-                    last_active = EXCLUDED.last_active,
-                    allowed = FALSE,
-                    real_nickname = COALESCE(user_data.real_nickname, 'None'),
-                    deviceid = EXCLUDED.deviceid;
-            """, (deviceid, ip, server, nickname, license_active, last_active, ip))
+            # Проверяем, есть ли запись с таким IP
+            cur.execute("SELECT unique_identifier FROM user_data WHERE unique_identifier = %s;", (ip,))
+            result = cur.fetchone()
+
+            if result:
+                # Обновляем запись по IP
+                cur.execute("""
+                    UPDATE user_data
+                    SET server = %s, nickname = %s, license_active = %s, last_active = %s
+                    WHERE unique_identifier = %s;
+                """, (server, nickname, license_active, last_active, ip))
+            else:
+                # Создаем новую запись по IP
+                cur.execute("""
+                    INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, unique_identifier)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s);
+                """, (deviceid, ip, server, nickname, license_active, last_active, ip))
         else:
-            cur.execute("""
-                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed, real_nickname, unique_identifier)
-                VALUES (%s, %s, %s, %s, %s, %s, FALSE, 'None', %s)
-                ON CONFLICT (unique_identifier)
-                DO UPDATE SET
-                    ip = EXCLUDED.ip,
-                    server = EXCLUDED.server,
-                    nickname = EXCLUDED.nickname,
-                    license_active = EXCLUDED.license_active,
-                    last_active = EXCLUDED.last_active,
-                    allowed = FALSE,
-                    real_nickname = COALESCE(user_data.real_nickname, 'None');
-            """, (deviceid, ip, server, nickname, license_active, last_active, deviceid))
+            # Проверяем, есть ли запись с таким deviceid
+            cur.execute("SELECT unique_identifier FROM user_data WHERE unique_identifier = %s;", (deviceid,))
+            result = cur.fetchone()
+
+            if result:
+                # Обновляем запись по deviceid
+                cur.execute("""
+                    UPDATE user_data
+                    SET ip = %s, server = %s, nickname = %s, license_active = %s, last_active = %s
+                    WHERE unique_identifier = %s;
+                """, (ip, server, nickname, license_active, last_active, deviceid))
+            else:
+                # Создаем новую запись по deviceid
+                cur.execute("""
+                    INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, unique_identifier)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s);
+                """, (deviceid, ip, server, nickname, license_active, last_active, deviceid))
 
         conn.commit()
         return jsonify({"status": "success"}), 201
@@ -222,6 +225,7 @@ def receive_data():
         conn.rollback()
         print("Error occurred while processing data:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 @app.route('/data', methods=['GET'])
 def get_data():
