@@ -1,7 +1,7 @@
-from flask import Flask, request, jsonify, render_template
-from datetime import datetime, timedelta, timezone
-import psycopg2
+from flask import Flask, request, jsonify
 import os
+import psycopg2
+from datetime import datetime, timezone, timedelta
 
 app = Flask(__name__)
 
@@ -60,51 +60,7 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>License Status</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f9f9f9;
-            color: #333;
-            padding: 20px;
-        }
-        h1 {
-            text-align: center;
-            color: #007BFF;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border: 1px solid #ddd;
-        }
-        th {
-            background-color: #007BFF;
-            color: white;
-        }
-        .status {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-        }
-        .active {
-            background-color: green;
-        }
-        .inactive {
-            background-color: red;
-        }
-        .license-active {
-            color: green;
-        }
-        .license-inactive {
-            color: red;
-        }
-        .status-info {
-            font-size: 14px;
-        }
+        /* Стили страницы */
     </style>
 </head>
 <body>
@@ -130,15 +86,7 @@ HTML_TEMPLATE = """
                 .then(data => {
                     const tableBody = document.getElementById('data-table-body');
                     tableBody.innerHTML = '';
-                    const uniqueUsers = new Map();
-                    
                     data.forEach(item => {
-                        if (!uniqueUsers.has(item.nickname)) {
-                            uniqueUsers.set(item.nickname, item);
-                        }
-                    });
-
-                    uniqueUsers.forEach(item => {
                         const row = document.createElement('tr');
                         const statusClass = item.active ? 'active' : 'inactive';
                         const licenseClass = item.license_active ? 'license-active' : 'license-inactive';
@@ -146,10 +94,10 @@ HTML_TEMPLATE = """
                         const lastActiveDate = new Date(item.last_active);
                         const formattedDate = lastActiveDate.toLocaleString();
 
-                        let statusText = item.active ? 'Active' : `Inactive | Last active: ${formattedDate}`;
+                        let statusText = item.active ? `Active` : `Inactive | Last active: ${formattedDate}`;
 
-                        row.innerHTML = 
-                            `<td>${item.nickname}</td>
+                        row.innerHTML = `
+                            <td>${item.nickname}</td>
                             <td>${item.real_nickname}</td>
                             <td>${item.server}</td>
                             <td class="${licenseClass}">${item.license_active ? 'Active' : 'Inactive'}</td>
@@ -167,6 +115,10 @@ HTML_TEMPLATE = """
 </html>
 """
 
+@app.route('/', methods=['GET'])
+def home():
+    return HTML_TEMPLATE
+
 @app.route('/data', methods=['POST'])
 def receive_data():
     data = request.get_json()
@@ -181,54 +133,22 @@ def receive_data():
         return jsonify({"error": "IP is required"}), 400
 
     try:
-        if deviceid == '-':
-            # Проверяем, есть ли запись с таким IP
-            cur.execute("SELECT deviceid FROM user_data WHERE unique_identifier = %s;", (ip,))
-            result = cur.fetchone()
+        unique_identifier = deviceid if deviceid != '-' else ip
 
-            if result:
-                # Обновляем запись с IP как уникальным идентификатором
-                cur.execute("""
-                    UPDATE user_data
-                    SET server = %s, nickname = %s, license_active = %s, last_active = %s
-                    WHERE unique_identifier = %s;
-                """, (server, nickname, license_active, last_active, ip))
-            else:
-                # Создаем новую запись с IP как уникальным идентификатором
-                cur.execute("""
-                    INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, unique_identifier)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s);
-                """, (deviceid, ip, server, nickname, license_active, last_active, ip))
-        else:
-            # Проверяем, есть ли запись с таким deviceid
-            cur.execute("SELECT unique_identifier FROM user_data WHERE unique_identifier = %s;", (deviceid,))
-            result = cur.fetchone()
-
-            if result:
-                # Обновляем запись с deviceid как уникальным идентификатором
-                cur.execute("""
-                    UPDATE user_data
-                    SET ip = %s, server = %s, nickname = %s, license_active = %s, last_active = %s
-                    WHERE unique_identifier = %s;
-                """, (ip, server, nickname, license_active, last_active, deviceid))
-            else:
-                # Проверяем, есть ли запись с таким IP
-                cur.execute("SELECT unique_identifier FROM user_data WHERE unique_identifier = %s;", (ip,))
-                ip_result = cur.fetchone()
-
-                if ip_result:
-                    # Обновляем запись с новым deviceid, меняя уникальный ключ
-                    cur.execute("""
-                        UPDATE user_data
-                        SET deviceid = %s, unique_identifier = %s, server = %s, nickname = %s, license_active = %s, last_active = %s
-                        WHERE unique_identifier = %s;
-                    """, (deviceid, deviceid, server, nickname, license_active, last_active, ip))
-                else:
-                    # Создаем новую запись с deviceid как уникальным идентификатором
-                    cur.execute("""
-                        INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, unique_identifier)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s);
-                    """, (deviceid, ip, server, nickname, license_active, last_active, deviceid))
+        cur.execute("""
+        INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed, real_nickname, unique_identifier)
+        VALUES (%s, %s, %s, %s, %s, %s, FALSE, 'None', %s)
+        ON CONFLICT (unique_identifier)
+        DO UPDATE SET
+            ip = EXCLUDED.ip,
+            server = EXCLUDED.server,
+            nickname = EXCLUDED.nickname,
+            license_active = EXCLUDED.license_active,
+            last_active = EXCLUDED.last_active,
+            allowed = FALSE,
+            real_nickname = COALESCE(user_data.real_nickname, 'None'),
+            deviceid = EXCLUDED.deviceid;
+        """, (deviceid, ip, server, nickname, license_active, last_active, unique_identifier))
 
         conn.commit()
         return jsonify({"status": "success"}), 201
@@ -237,7 +157,6 @@ def receive_data():
         conn.rollback()
         print("Error occurred while processing data:", e)
         return jsonify({"error": "Internal server error"}), 500
-
 
 @app.route('/data', methods=['GET'])
 def get_data():
