@@ -183,18 +183,18 @@ def receive_data():
     try:
         if deviceid == '-':
             # Проверяем, есть ли запись с таким IP
-            cur.execute("SELECT unique_identifier FROM user_data WHERE unique_identifier = %s;", (ip,))
+            cur.execute("SELECT deviceid FROM user_data WHERE unique_identifier = %s;", (ip,))
             result = cur.fetchone()
 
             if result:
-                # Обновляем запись по IP
+                # Обновляем запись с IP как уникальным идентификатором
                 cur.execute("""
                     UPDATE user_data
                     SET server = %s, nickname = %s, license_active = %s, last_active = %s
                     WHERE unique_identifier = %s;
                 """, (server, nickname, license_active, last_active, ip))
             else:
-                # Создаем новую запись по IP
+                # Создаем новую запись с IP как уникальным идентификатором
                 cur.execute("""
                     INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, unique_identifier)
                     VALUES (%s, %s, %s, %s, %s, %s, %s);
@@ -205,18 +205,30 @@ def receive_data():
             result = cur.fetchone()
 
             if result:
-                # Обновляем запись по deviceid
+                # Обновляем запись с deviceid как уникальным идентификатором
                 cur.execute("""
                     UPDATE user_data
                     SET ip = %s, server = %s, nickname = %s, license_active = %s, last_active = %s
                     WHERE unique_identifier = %s;
                 """, (ip, server, nickname, license_active, last_active, deviceid))
             else:
-                # Создаем новую запись по deviceid
-                cur.execute("""
-                    INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, unique_identifier)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s);
-                """, (deviceid, ip, server, nickname, license_active, last_active, deviceid))
+                # Проверяем, есть ли запись с таким IP
+                cur.execute("SELECT unique_identifier FROM user_data WHERE unique_identifier = %s;", (ip,))
+                ip_result = cur.fetchone()
+
+                if ip_result:
+                    # Обновляем запись с новым deviceid, меняя уникальный ключ
+                    cur.execute("""
+                        UPDATE user_data
+                        SET deviceid = %s, unique_identifier = %s, server = %s, nickname = %s, license_active = %s, last_active = %s
+                        WHERE unique_identifier = %s;
+                    """, (deviceid, deviceid, server, nickname, license_active, last_active, ip))
+                else:
+                    # Создаем новую запись с deviceid как уникальным идентификатором
+                    cur.execute("""
+                        INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, unique_identifier)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s);
+                    """, (deviceid, ip, server, nickname, license_active, last_active, deviceid))
 
         conn.commit()
         return jsonify({"status": "success"}), 201
