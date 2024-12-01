@@ -179,13 +179,14 @@ def receive_data():
     try:
         # Проверяем, существует ли строка с таким deviceid или ip
         cur.execute("""
-            SELECT deviceid FROM user_data
+            SELECT deviceid, real_nickname, allowed FROM user_data
             WHERE unique_identifier = %s OR unique_identifier = %s;
         """, (deviceid, ip))
         existing = cur.fetchone()
 
         if existing:
-            # Обновляем существующую запись
+            deviceid, real_nickname, allowed = existing
+            # Обновляем существующую запись, но не меняем real_nickname и allowed, если они уже установлены
             cur.execute("""
                 UPDATE user_data
                 SET ip = %s,
@@ -194,16 +195,16 @@ def receive_data():
                     license_active = %s,
                     last_active = %s,
                     deviceid = %s,
-                    real_nickname = %s,
-                    allowed = %s
+                    real_nickname = COALESCE(real_nickname, 'None'),
+                    allowed = COALESCE(allowed, FALSE)
                 WHERE unique_identifier = %s OR unique_identifier = %s;
-            """, (ip, server, nickname, license_active, last_active, deviceid, data.get("real_nickname", "None"), data.get("allowed", False), deviceid, ip))
+            """, (ip, server, nickname, license_active, last_active, deviceid, deviceid, ip))
         else:
-            # Вставляем новую запись
+            # Вставляем новую запись с инициализацией real_nickname и allowed
             cur.execute("""
-                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed)
-                VALUES (%s, %s, %s, %s, %s, %s, %s);
-            """, (deviceid, ip, server, nickname, license_active, last_active, False))
+                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed, real_nickname)
+                VALUES (%s, %s, %s, %s, %s, %s, FALSE, 'None');
+            """, (deviceid, ip, server, nickname, license_active, last_active))
 
         conn.commit()
         return jsonify({"status": "success"}), 201
