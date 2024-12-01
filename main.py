@@ -159,38 +159,47 @@ def home():
 
 @app.route('/data', methods=['POST'])
 def receive_data():
-    # Получение данных от клиента
     data = request.get_json()
-    deviceid = data.get("deviceId")
+    if not data:
+        return jsonify({"error": "No data received"}), 400
+
+    deviceid = data.get("deviceid", "-")
     ip = data.get("ip")
-    server = data.get("server")
-    nickname = data.get("Nickname")
-    license_active = data.get("license") == "activated"
+    server = data.get("server", "unknown")
+    nickname = data.get("nickname", "unknown")
+    license_active = data.get("license_status") == "activated"
     last_active = datetime.now(timezone.utc)
 
-    # Проверка на обязательные поля
-    if not all([deviceid, ip, server, nickname]):
-        return jsonify({"error": "Missing required fields"}), 400
+    # Логируем запрос
+    print(f"Received data: {data}")
+
+    if not ip:
+        return jsonify({"error": "IP is required"}), 400
 
     try:
+        unique_identifier = deviceid if deviceid != '-' else ip
+
         cur.execute("""
-        INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        ON CONFLICT (deviceid)
+        INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, unique_identifier)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (unique_identifier)
         DO UPDATE SET
             ip = EXCLUDED.ip,
             server = EXCLUDED.server,
             nickname = EXCLUDED.nickname,
             license_active = EXCLUDED.license_active,
             last_active = EXCLUDED.last_active;
-        """, (deviceid, ip, server, nickname, license_active, last_active))
+        """, (deviceid, ip, server, nickname, license_active, last_active, unique_identifier))
+
         conn.commit()
+        print(f"Data inserted/updated successfully for {unique_identifier}")
         return jsonify({"status": "success"}), 201
 
-    except psycopg2.Error as e:
+    except Exception as e:
         conn.rollback()
-        print("Database error:", e)
+        print(f"Error inserting data: {e}")
         return jsonify({"error": "Internal server error"}), 500
+
 
 @app.route('/data', methods=['GET'])
 def get_data():
