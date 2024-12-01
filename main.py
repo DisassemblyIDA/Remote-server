@@ -177,20 +177,38 @@ def receive_data():
         return jsonify({"error": "IP is required"}), 400
 
     try:
-        # Используем INSERT ... ON CONFLICT, чтобы обновить запись, если уникальный идентификатор уже существует
-        cur.execute("""
-            INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed, real_nickname, unique_identifier)
-            VALUES (%s, %s, %s, %s, %s, %s, FALSE, 'None', %s)
-            ON CONFLICT (unique_identifier)
-            DO UPDATE SET
-                ip = EXCLUDED.ip,
-                server = EXCLUDED.server,
-                nickname = EXCLUDED.nickname,
-                license_active = EXCLUDED.license_active,
-                last_active = EXCLUDED.last_active,
-                allowed = FALSE, 
-                real_nickname = COALESCE(user_data.real_nickname, 'None');
-        """, (deviceid, ip, server, nickname, license_active, last_active, deviceid))  # Уникальный идентификатор - это deviceid или ip
+        # Проверяем, если deviceid == '-', обновляем по ip, если нет, по deviceid
+        if deviceid == '-':
+            # Обновляем запись по ip, если deviceid отсутствует
+            cur.execute("""
+                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed, real_nickname, unique_identifier)
+                VALUES (%s, %s, %s, %s, %s, %s, FALSE, 'None', %s)
+                ON CONFLICT (unique_identifier)
+                DO UPDATE SET
+                    ip = EXCLUDED.ip,
+                    server = EXCLUDED.server,
+                    nickname = EXCLUDED.nickname,
+                    license_active = EXCLUDED.license_active,
+                    last_active = EXCLUDED.last_active,
+                    allowed = FALSE, 
+                    real_nickname = COALESCE(user_data.real_nickname, 'None'),
+                    deviceid = EXCLUDED.deviceid;
+            """, (deviceid, ip, server, nickname, license_active, last_active, ip))  # Обновляем по ip
+        else:
+            # Если deviceid не равно '-', обновляем запись по deviceid
+            cur.execute("""
+                INSERT INTO user_data (deviceid, ip, server, nickname, license_active, last_active, allowed, real_nickname, unique_identifier)
+                VALUES (%s, %s, %s, %s, %s, %s, FALSE, 'None', %s)
+                ON CONFLICT (unique_identifier)
+                DO UPDATE SET
+                    ip = EXCLUDED.ip,
+                    server = EXCLUDED.server,
+                    nickname = EXCLUDED.nickname,
+                    license_active = EXCLUDED.license_active,
+                    last_active = EXCLUDED.last_active,
+                    allowed = FALSE, 
+                    real_nickname = COALESCE(user_data.real_nickname, 'None');
+            """, (deviceid, ip, server, nickname, license_active, last_active, deviceid))  # Обновляем по deviceid
 
         conn.commit()
         return jsonify({"status": "success"}), 201
@@ -199,6 +217,7 @@ def receive_data():
         conn.rollback()
         print("Error occurred while processing data:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 
 @app.route('/data', methods=['GET'])
