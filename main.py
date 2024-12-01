@@ -205,7 +205,7 @@ def receive_data():
 
 @app.route('/data', methods=['GET'])
 def get_data():
-    current_time = datetime.now(timezone.utc)
+    current_time = datetime.now(timezone.utc)  # Устанавливаем текущее время с временной зоной UTC
     try:
         # Извлечение всех данных
         cur.execute("""
@@ -216,7 +216,13 @@ def get_data():
 
         response = []
         for nickname, real_nickname, server, license_active, last_active, allowed in rows:
-            active = (current_time - last_active) < ACTIVE_DURATION
+            # Преобразуем last_active в naive datetime, если оно offset-aware
+            if last_active.tzinfo is not None:
+                last_active = last_active.replace(tzinfo=None)
+
+            # Приводим current_time также в naive datetime
+            active = (current_time.replace(tzinfo=None) - last_active) < ACTIVE_DURATION
+
             response.append({
                 "nickname": nickname,
                 "real_nickname": real_nickname,
@@ -231,6 +237,7 @@ def get_data():
     except psycopg2.Error as e:
         print("Database error:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=True)
