@@ -171,6 +171,8 @@ def receive_data():
     nickname = data.get("nickname", "unknown")
     license_active = data.get("license_status") == "activated"
     last_active = datetime.now(timezone.utc)
+    if deviceid == "-":
+        return jsonify({"error": "unknown id"}), 400
 
     # Логируем запрос
     print(f"Received data: {data}")
@@ -237,6 +239,19 @@ def get_data():
     except psycopg2.Error as e:
         print("Database error:", e)
         return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/check_ip/<deviceid>', methods=['GET'])
+def check_ip(deviceid):
+    # Проверяем наличие записи для deviceid с allowed = true
+    cur.execute("SELECT allowed FROM user_data WHERE deviceid = %s;", (deviceid,))
+    result = cur.fetchone()
+    
+    if result and result[0]:  # Если запись найдена и allowed == true
+        return "1"
+    
+    return "0"
+
 
 
 if __name__ == '__main__':
