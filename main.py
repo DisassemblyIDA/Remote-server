@@ -58,27 +58,117 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>License Status</title>
+    <title>License and User Status</title>
     <style>
-        /* Стили страницы */
+        /* Общий фон страницы */
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #6a11cb, #2575fc);
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Контейнер таблицы */
+        .container {
+            max-width: 90%;
+            margin: 20px auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Заголовок */
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            background: linear-gradient(90deg, #6a11cb, #2575fc);
+            padding: 15px;
+            margin: 0;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Таблица */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+            text-align: left;
+            overflow: hidden;
+        }
+
+        /* Шапка таблицы */
+        thead th {
+            background: linear-gradient(135deg, #6a11cb, #2575fc);
+            color: #fff;
+            font-weight: bold;
+            padding: 15px;
+        }
+
+        /* Тело таблицы */
+        tbody tr {
+            background: rgba(255, 255, 255, 0.1);
+            transition: background 0.3s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        tbody td {
+            padding: 10px 15px;
+            color: #e4e4e4;
+        }
+
+        /* Стили для активного и неактивного статуса */
+        .status {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status.active {
+            background-color: #4caf50; /* Зеленый */
+        }
+
+        .status.inactive {
+            background-color: #f44336; /* Красный */
+        }
+
+        .license-active {
+            color: #4caf50;
+        }
+
+        .license-inactive {
+            color: #f44336;
+        }
     </style>
 </head>
 <body>
-    <h1>License and User Status</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>Nickname</th>
-                <th>Real Nickname</th>
-                <th>Server</th>
-                <th>License Status</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody id="data-table-body">
-            <tr><td colspan="5">Loading data...</td></tr>
-        </tbody>
-    </table>
+    <div class="container">
+        <h1>License and User Status</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nickname</th>
+                    <th>Real Nickname</th>
+                    <th>Server</th>
+                    <th>License Status</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="data-table-body">
+                <tr><td colspan="5">Loading data...</td></tr>
+            </tbody>
+        </table>
+    </div>
     <script>
         function fetchData() {
             fetch('/data')
@@ -113,6 +203,7 @@ HTML_TEMPLATE = """
     </script>
 </body>
 </html>
+
 """
 
 @app.route('/', methods=['GET'])
@@ -163,7 +254,13 @@ def get_data():
     current_time = datetime.now(timezone.utc)
 
     try:
-        cur.execute("SELECT nickname, real_nickname, server, license_active, last_active FROM user_data;")
+        # Выбираем только актуальные записи
+        cur.execute("""
+        SELECT DISTINCT ON (COALESCE(NULLIF(deviceid, '-'), ip))
+               nickname, real_nickname, server, license_active, last_active
+        FROM user_data
+        ORDER BY COALESCE(NULLIF(deviceid, '-'), ip), last_active DESC;
+        """)
         rows = cur.fetchall()
 
         response = []
@@ -186,6 +283,7 @@ def get_data():
         conn.rollback()
         print("Error occurred while fetching data:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 @app.route('/check_ip/<deviceid>', methods=['GET'])
 def check_ip(deviceid):
