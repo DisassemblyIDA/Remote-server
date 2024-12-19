@@ -205,7 +205,7 @@ def receive_data():
 
 @app.route('/data', methods=['GET'])
 def get_data():
-    current_time = datetime.now(timezone.utc)
+    current_time = datetime.now(timezone.utc)  # Убедимся, что это offset-aware
     try:
         # Извлечение данных и сортировка в SQL
         cur.execute("""
@@ -219,8 +219,13 @@ def get_data():
 
         response = []
         for nickname, real_nickname, server, license_active, last_active, allowed in rows:
-            # Преобразование времени последней активности в человекочитаемый формат
+            # Преобразование last_active в offset-aware datetime
+            if last_active.tzinfo is None:
+                last_active = last_active.replace(tzinfo=timezone.utc)
+
+            # Рассчитываем разницу во времени
             time_diff = current_time - last_active
+
             if time_diff < timedelta(minutes=1):
                 last_active_str = f"{time_diff.seconds} секунд назад"
             elif time_diff < timedelta(hours=1):
@@ -249,6 +254,7 @@ def get_data():
     except psycopg2.Error as e:
         print("Database error:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 
 
