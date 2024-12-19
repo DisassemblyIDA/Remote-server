@@ -226,6 +226,7 @@ def get_data():
             # Рассчитываем разницу во времени
             time_diff = current_time - last_active
 
+            # Форматируем время в зависимости от разницы
             if time_diff < timedelta(minutes=1):
                 last_active_str = f"{time_diff.seconds} seconds ago"
             elif time_diff < timedelta(hours=1):
@@ -233,7 +234,8 @@ def get_data():
             elif time_diff < timedelta(days=1):
                 last_active_str = f"{time_diff.seconds // 3600} hours ago"
             elif time_diff < timedelta(days=30):
-                last_active_str = f"{time_diff.days} days ago"
+                time_string = last_active.strftime("%H:%M")  # Часы и минуты
+                last_active_str = f"{time_diff.days} days ago in {time_string}"
             else:
                 last_active_str = f"{time_diff.days // 30} months ago"
 
@@ -254,6 +256,7 @@ def get_data():
     except psycopg2.Error as e:
         print("Database error:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 
 
