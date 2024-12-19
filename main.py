@@ -122,34 +122,32 @@ HTML_TEMPLATE = """
     </div>
     <script>
         function fetchData() {
-            fetch('/data')
-                .then(response => response.json())
-                .then(data => {
-                    const tableBody = document.getElementById('data-table-body');
-                    tableBody.innerHTML = '';
-                    data.forEach(item => {
-                        const statusClass = item.active ? 'active' : 'inactive';
-                        const licenseClass = item.license_active ? 'license-active' : 'license-inactive';
+    fetch('/data')
+        .then(response => response.json())
+        .then(data => {
+            const tableBody = document.getElementById('data-table-body');
+            tableBody.innerHTML = '';
+            data.forEach(item => {
+                const statusClass = item.active ? 'active' : 'inactive';
+                const licenseClass = item.license_active ? 'license-active' : 'license-inactive';
 
-                        const lastActiveDate = new Date(item.last_active);
-                        const formattedDate = lastActiveDate.toLocaleString();
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.nickname}</td>
+                    <td>${item.real_nickname}</td>
+                    <td>${item.server}</td>
+                    <td class="${licenseClass}">${item.license_active ? 'Active' : 'Inactive'}</td>
+                    <td><span class="status ${statusClass}"></span>${item.active ? 'Online' : item.last_active}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        })
+        .catch(err => console.error('Error fetching data:', err));
+}
 
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${item.nickname}</td>
-                            <td>${item.real_nickname}</td>
-                            <td>${item.server}</td>
-                            <td class="${licenseClass}">${item.license_active ? 'Active' : 'Inactive'}</td>
-                            <td><span class="status ${statusClass}"></span>${item.active ? 'Online' : formattedDate}</td>
-                        `;
-                        tableBody.appendChild(row);
-                    });
-                })
-                .catch(err => console.error('Error fetching data:', err));
-        }
+setInterval(fetchData, 5000);
+fetchData();
 
-        setInterval(fetchData, 5000);
-        fetchData();
     </script>
 </body>
 </html>
@@ -207,30 +205,42 @@ def receive_data():
 
 @app.route('/data', methods=['GET'])
 def get_data():
-    current_time = datetime.now(timezone.utc)  # Устанавливаем текущее время с временной зоной UTC
+    current_time = datetime.now(timezone.utc)
     try:
-        # Извлечение всех данных
+        # Извлечение данных и сортировка в SQL
         cur.execute("""
         SELECT nickname, real_nickname, server, license_active, last_active, allowed
-        FROM user_data;
+        FROM user_data
+        ORDER BY
+            (current_timestamp - last_active) <= INTERVAL '30 seconds' DESC, -- Онлайн первыми
+            last_active DESC;  -- Оффлайн по убыванию времени активности
         """)
         rows = cur.fetchall()
 
         response = []
         for nickname, real_nickname, server, license_active, last_active, allowed in rows:
-            # Преобразуем last_active в naive datetime, если оно offset-aware
-            if last_active.tzinfo is not None:
-                last_active = last_active.replace(tzinfo=None)
+            # Преобразование времени последней активности в человекочитаемый формат
+            time_diff = current_time - last_active
+            if time_diff < timedelta(minutes=1):
+                last_active_str = f"{time_diff.seconds} секунд назад"
+            elif time_diff < timedelta(hours=1):
+                last_active_str = f"{time_diff.seconds // 60} минут назад"
+            elif time_diff < timedelta(days=1):
+                last_active_str = f"{time_diff.seconds // 3600} часов назад"
+            elif time_diff < timedelta(days=30):
+                last_active_str = f"{time_diff.days} дней назад"
+            else:
+                last_active_str = f"{time_diff.days // 30} месяцев назад"
 
-            # Приводим current_time также в naive datetime
-            active = (current_time.replace(tzinfo=None) - last_active) < ACTIVE_DURATION
+            # Проверка активности
+            active = time_diff < ACTIVE_DURATION
 
             response.append({
                 "nickname": nickname,
                 "real_nickname": real_nickname,
                 "server": server,
                 "license_active": license_active,
-                "last_active": last_active.isoformat(),
+                "last_active": last_active_str,
                 "active": active,
                 "allowed": allowed
             })
@@ -239,6 +249,7 @@ def get_data():
     except psycopg2.Error as e:
         print("Database error:", e)
         return jsonify({"error": "Internal server error"}), 500
+
 
 
 @app.route('/check_ip/<deviceid>', methods=['GET'])
