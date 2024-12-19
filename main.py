@@ -140,7 +140,7 @@ HTML_TEMPLATE = """
                             <td>${item.real_nickname}</td>
                             <td>${item.server}</td>
                             <td class="${licenseClass}">${item.license_active ? 'Active' : 'Inactive'}</td>
-                            <td><span class="status ${statusClass}"></span>${item.active ? 'Online' : 'Offline'}</td>
+                            <td><span class="status ${statusClass}"></span>${item.active ? 'Online' : formattedDate}</td>
                         `;
                         tableBody.appendChild(row);
                     });
