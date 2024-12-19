@@ -227,15 +227,15 @@ def get_data():
             time_diff = current_time - last_active
 
             if time_diff < timedelta(minutes=1):
-                last_active_str = f"{time_diff.seconds} секунд назад"
+                last_active_str = f"{time_diff.seconds} seconds ago"
             elif time_diff < timedelta(hours=1):
-                last_active_str = f"{time_diff.seconds // 60} минут назад"
+                last_active_str = f"{time_diff.seconds // 60} minutes ago"
             elif time_diff < timedelta(days=1):
-                last_active_str = f"{time_diff.seconds // 3600} часов назад"
+                last_active_str = f"{time_diff.seconds // 3600} hours ago"
             elif time_diff < timedelta(days=30):
-                last_active_str = f"{time_diff.days} дней назад"
+                last_active_str = f"{time_diff.days} days ago"
             else:
-                last_active_str = f"{time_diff.days // 30} месяцев назад"
+                last_active_str = f"{time_diff.days // 30} months ago"
 
             # Проверка активности
             active = time_diff < ACTIVE_DURATION
